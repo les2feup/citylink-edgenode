@@ -1,41 +1,7 @@
 import { bold, dim, white } from "jsr:@std/fmt/colors";
 import { getLoggerName } from "./internal/internal.ts";
+import { loggers } from "./log-config.ts";
 import * as log from "jsr:@std/log";
-
-const loggers: Record<string, log.LoggerConfig> = {
-  "citylink": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.connectors": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.connectors.mqtt": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.connectors.mqtt.registration": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.controllers": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.controllers.umqttCore": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.services": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.services.cache": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-};
 
 function hasContext(arg: unknown): arg is { $context: Record<string, string> } {
   return typeof arg === "object" && arg !== null && "$context" in arg;

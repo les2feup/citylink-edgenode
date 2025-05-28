@@ -1,4 +1,4 @@
-import { log } from "../../../deps.ts";
+import type * as log from "jsr:@std/log";
 
 export class ContextualLogger {
   constructor(
