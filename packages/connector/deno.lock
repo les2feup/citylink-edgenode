@@ -1,0 +1,32 @@
+{
+  "version": "4",
+  "specifiers": {
+    "jsr:@std/assert@*": "1.0.12",
+    "jsr:@std/internal@^1.0.6": "1.0.8",
+    "npm:wot-thing-description-types@*": "1.1.0-09-November-2023",
+    "npm:wot-thing-model-types@*": "1.1.0-09-November-2023",
+    "npm:zod@*": "3.24.4"
+  },
+  "jsr": {
+    "@std/assert@1.0.12": {
+      "integrity": "08009f0926dda9cbd8bef3a35d3b6a4b964b0ab5c3e140a4e0351fbf34af5b9a",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.8": {
+      "integrity": "fc66e846d8d38a47cffd274d80d2ca3f0de71040f855783724bb6b87f60891f5"
+    }
+  },
+  "npm": {
+    "wot-thing-description-types@1.1.0-09-November-2023": {
+      "integrity": "sha512-qgZ1Khg/L3SkIRSm4POVoj0P5MU4GIwxWdyQz2ckZzhnXesgPqe+AUzGxK37ArlxvaMytyjo0Cx2yfKoDHtlkA=="
+    },
+    "wot-thing-model-types@1.1.0-09-November-2023": {
+      "integrity": "sha512-BwmZGEG5VCth34RwXbQutFre7dcSanm1OhYve6lTxuGyqeRAQsj33CUrN5PjU5LSs68Xubm0FbKJZPvWGFa6LA=="
+    },
+    "zod@3.24.4": {
+      "integrity": "sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg=="
+    }
+  }
+}
