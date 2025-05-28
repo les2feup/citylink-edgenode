@@ -1,4 +1,4 @@
-import { AppManifest } from "../zod-schemas/app-manifest.ts";
+import { AppManifest } from "../types/zod/app-manifest.ts";
 import { getAppManifestCache } from "./cache-registry.ts";
 
 export async function fetchAppManifest(
