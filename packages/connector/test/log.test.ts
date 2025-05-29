@@ -1,5 +1,6 @@
-import { assert, log } from "../../../../deps.ts";
-import { getLoggerName } from "./internal.ts";
+import type * as log from "jsr:@std/log";
+import { assertEquals } from "jsr:@std/assert";
+import { getLoggerName } from "../src/utils/log/internal/internal.ts";
 
 Deno.test("getLoggerName returns default logger for unknown module", () => {
   const config: log.LogConfig = {
@@ -11,7 +12,7 @@ Deno.test("getLoggerName returns default logger for unknown module", () => {
     },
   };
   const loggerName = getLoggerName("file:///unknown/module.ts", config);
-  assert.strictEqual(loggerName, "default");
+  assertEquals(loggerName, "default");
 });
 
 Deno.test("getLoggerName returns correct logger for known module", () => {
@@ -29,7 +30,7 @@ Deno.test("getLoggerName returns correct logger for known module", () => {
     },
   };
   const loggerName = getLoggerName(moduleUrl, config);
-  assert.strictEqual(loggerName, "citylink.controllers.exampleController");
+  assertEquals(loggerName, "citylink.controllers.exampleController");
 });
 
 Deno.test("getLoggerName return the closest matching logger", () => {
@@ -56,11 +57,11 @@ Deno.test("getLoggerName return the closest matching logger", () => {
     },
   };
   const loggerName = getLoggerName(moduleUrl, config);
-  assert.strictEqual(
+  assertEquals(
     loggerName,
     "citylink.controllers.nested.exampleController",
   );
 
   const loggerName2 = getLoggerName(moduleUrl2, config);
-  assert.strictEqual(loggerName2, "citylink.controllers.nested");
+  assertEquals(loggerName2, "citylink.controllers.nested");
 });

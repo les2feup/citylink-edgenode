@@ -1,4 +1,5 @@
-import { log, path } from "../../../../deps.ts";
+import type * as log from "jsr:@std/log";
+import * as path from "jsr:@std/path";
 
 export function getLoggerName(
   moduleUrl: string,
