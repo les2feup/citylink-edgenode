@@ -1,14 +1,16 @@
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { ThingDescription } from "npm:wot-thing-description-types";
-import { getLogger } from "../utils/log/log.ts";
-import {
-  type CompositionOptions,
-  ThingModelHelpers,
-} from "../../third-party/eclipse-thingweb/thing-model/src/tm-helpers.ts";
 import type {
   TemplateMap,
   ThingDescriptionOpts,
 } from "../types/thing-description-opts.ts";
+import { getLogger } from "../utils/log/log.ts";
+
+//HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
+import {
+  type CompositionOptions,
+  ThingModelHelpers,
+} from "../../../../third-party/eclipse-thingweb/thing-model/src/tm-helpers.ts";
 
 const tmTools = new ThingModelHelpers();
 const logger = getLogger(import.meta.url);

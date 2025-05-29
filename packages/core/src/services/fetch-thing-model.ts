@@ -4,7 +4,7 @@ import { getThingModelCache } from "./cache-registry.ts";
 import { getLogger } from "../utils/log/log.ts";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
-import { ThingModelHelpers } from "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts";
+import { ThingModelHelpers } from "../../../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts";
 
 type TmMetadata = AppManifest["wot"]["tm"];
 
