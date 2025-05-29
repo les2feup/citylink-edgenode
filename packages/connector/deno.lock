@@ -2,7 +2,10 @@
   "version": "4",
   "specifiers": {
     "jsr:@std/assert@*": "1.0.12",
+    "jsr:@std/bytes@^1.0.6": "1.0.6",
+    "jsr:@std/crypto@^1.0.5": "1.0.5",
     "jsr:@std/internal@^1.0.6": "1.0.8",
+    "jsr:@std/uuid@*": "1.0.8",
     "npm:@types/node@*": "22.12.0",
     "npm:ajv-formats@*": "3.0.1_ajv@8.17.1",
     "npm:ajv@*": "8.17.1",
@@ -20,8 +23,21 @@
         "jsr:@std/internal"
       ]
     },
+    "@std/bytes@1.0.6": {
+      "integrity": "f6ac6adbd8ccd99314045f5703e23af0a68d7f7e58364b47d2c7f408aeb5820a"
+    },
+    "@std/crypto@1.0.5": {
+      "integrity": "0dcfbb319fe0bba1bd3af904ceb4f948cde1b92979ec1614528380ed308a3b40"
+    },
     "@std/internal@1.0.8": {
       "integrity": "fc66e846d8d38a47cffd274d80d2ca3f0de71040f855783724bb6b87f60891f5"
+    },
+    "@std/uuid@1.0.8": {
+      "integrity": "2c3aa3de49271c042b57f0362018c380103c11aafdf89227f5fa2662e6568623",
+      "dependencies": [
+        "jsr:@std/bytes",
+        "jsr:@std/crypto"
+      ]
     }
   },
   "npm": {
