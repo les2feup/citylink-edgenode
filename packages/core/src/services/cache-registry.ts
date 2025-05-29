@@ -10,7 +10,7 @@ let appManifestCache: AppManifestCache = new InMemoryCache<
   AppManifest
 >();
 
-export function getAppManifestCache(): AppManifestCache {
+export function getAppManifestCache(): Readonly<AppManifestCache> {
   return appManifestCache;
 }
 
@@ -24,7 +24,7 @@ export function setAppManifestCache(
 
 let thingModelCache: ThingModelCache = new InMemoryCache<string, ThingModel>();
 
-export function getThingModelCache(): ThingModelCache {
+export function getThingModelCache(): Readonly<ThingModelCache> {
   return thingModelCache;
 }
 
@@ -32,4 +32,14 @@ export function setThingModelCache(
   cache: ThingModelCache,
 ): void {
   thingModelCache = cache;
+}
+
+/// Utility Functions
+
+export function configure(
+  appManifestCache?: AppManifestCache,
+  thingModelCache?: ThingModelCache,
+): void {
+  if (appManifestCache) setAppManifestCache(appManifestCache);
+  if (thingModelCache) setThingModelCache(thingModelCache);
 }

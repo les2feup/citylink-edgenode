@@ -1,7 +1,7 @@
 import type { EndNode } from "../end-node.ts";
 import type { AppManifest } from "../types/zod/app-manifest.ts";
 
-export interface Controller {
+export interface EndNodeController {
   readonly node: EndNode;
 
   start(): Promise<void>;
@@ -10,6 +10,6 @@ export interface Controller {
   startAdaptation(manifest: AppManifest | URL): Promise<void>;
 }
 
-export interface ControllerFactory {
-  produce(node: EndNode): Promise<Controller>;
+export interface EndNodeControllerFactory {
+  produce(node: EndNode): Promise<EndNodeController>;
 }

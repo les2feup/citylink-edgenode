@@ -19,4 +19,3 @@ export interface Cache<K, V> {
 
 export interface AppManifestCache extends Cache<string, AppManifest> {}
 export interface ThingModelCache extends Cache<string, ThingModel> {}
-

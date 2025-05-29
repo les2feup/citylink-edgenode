@@ -5,14 +5,20 @@ import type { AppManifest } from "./types/zod/app-manifest.ts";
 import type { RegistrationListener } from "./types/registration-listener.ts";
 import type { TMCompatible } from "./types/tm-compatible.ts";
 import type {
-  Controller,
-  ControllerFactory,
+  EndNodeController,
+  EndNodeControllerFactory,
 } from "./types/end-node-controller.ts";
 import type {
   TemplateMap,
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
 import { produceTD } from "./services/produce-thing-description.ts";
+
+interface RegisteredController {
+  readonly td: ThingDescription;
+  readonly compatible: TMCompatible;
+  readonly factory: EndNodeControllerFactory;
+}
 
 export class EdgeConnectorFactory {
   static async produce(
@@ -28,33 +34,22 @@ export class EdgeConnectorFactory {
   }
 }
 
-export interface RegisteredController {
-  readonly td: ThingDescription;
-  readonly compatible: TMCompatible;
-  readonly factory: ControllerFactory;
-}
-
-// Edge connector is composed of Registration Listener + Node Controllers
 export class EdgeConnector {
-  protected readonly controllers = new Map<
+  private readonly controllers = new Map<
     string,
-    Controller
+    EndNodeController
   >();
 
-  protected readonly controllerRegistry: RegisteredController[] = [];
+  private readonly controllerRegistry: RegisteredController[] = [];
 
   constructor(
     readonly td: ThingDescription,
-    protected readonly regListener: RegistrationListener,
+    private readonly regListener: RegistrationListener,
   ) {
   }
 
   async start(): Promise<void> {
-    return await this.regListener.start(
-      async (node: EndNode, compatible: TMCompatible) => {
-        await this.registerNode(node, compatible);
-      },
-    );
+    return await this.regListener.start(this.registerNode.bind(this));
   }
 
   async stop(): Promise<void> {
@@ -70,7 +65,7 @@ export class EdgeConnector {
   async registerControllerFactory(
     tm: ThingModel,
     opts: ThingDescriptionOpts<TemplateMap>,
-    factory: ControllerFactory,
+    factory: EndNodeControllerFactory,
   ): Promise<void> {
     const compatible: TMCompatible = {
       title: tm.title!,
@@ -85,28 +80,6 @@ export class EdgeConnector {
       compatible,
       factory,
     });
-  }
-
-  protected async registerNode(
-    node: EndNode,
-    comp: TMCompatible,
-  ): Promise<void> {
-    const match = this.controllerRegistry.find(
-      (entry) =>
-        entry.compatible.title === comp.title &&
-        entry.compatible.version === comp.version,
-    );
-
-    if (!match) {
-      throw new Error(`No compatible controller for node ${node.id}`);
-    }
-
-    const controller = await match.factory.produce(node);
-    this.controllers.set(node.id, controller);
-    await controller.start();
-
-    //TODO: add link to the new node's TD in the edge connector's TD
-    //      or the controller's TD using the collection/item relationship
   }
 
   getRegisteredNodes(): ReadonlyArray<EndNode> {
@@ -132,5 +105,27 @@ export class EdgeConnector {
       return Promise.reject(new Error(`Controller for UUID ${uuid} not found`));
     }
     return controller.startAdaptation(newManifest);
+  }
+
+  private async registerNode(
+    node: EndNode,
+    comp: TMCompatible,
+  ): Promise<void> {
+    const match = this.controllerRegistry.find(
+      (entry) =>
+        entry.compatible.title === comp.title &&
+        entry.compatible.version === comp.version,
+    );
+
+    if (!match) {
+      throw new Error(`No compatible controller for node ${node.id}`);
+    }
+
+    const controller = await match.factory.produce(node);
+    this.controllers.set(node.id, controller);
+    await controller.start();
+
+    //TODO: add link to the new node's TD in the edge connector's TD
+    //      or the controller's TD using the collection/item relationship
   }
 }

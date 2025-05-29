@@ -24,16 +24,6 @@ export class EndNode {
   }
 
   static async from<tmap extends TemplateMap>(
-    manifestUrl: URL,
-    opts: ThingDescriptionOpts<tmap>,
-  ): Promise<EndNode>;
-
-  static async from<tmap extends TemplateMap>(
-    manifest: AppManifest,
-    opts: ThingDescriptionOpts<tmap>,
-  ): Promise<EndNode>;
-
-  static async from<tmap extends TemplateMap>(
     arg: AppManifest | URL,
     opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode> {
