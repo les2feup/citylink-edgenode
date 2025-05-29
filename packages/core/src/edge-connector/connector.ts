@@ -76,9 +76,6 @@ export class EdgeConnector<
     protected readonly opts: Opts,
   ) {}
 
-  // TODO: Controller instances are independent. How to ensure that
-  //       all are able to run in parallel? One busy controller should
-  //       not block the event loop for other controllers.
   protected async registerNode(node: EndNode): Promise<void> {
     const controller = this.controllerFactory.produce(
       node,

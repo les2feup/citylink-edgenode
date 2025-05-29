@@ -1,5 +1,5 @@
 {
-  "name": "connector",
+  "name": "citylink/edge-node/core",
   "version": "0.1.0",
   "exports": "./mod.ts",
   "tasks": {
