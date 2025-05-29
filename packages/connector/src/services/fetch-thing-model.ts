@@ -1,6 +1,7 @@
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { AppManifest } from "../types/zod/app-manifest.ts";
 import { getThingModelCache } from "./cache-registry.ts";
+import { getLogger } from "../utils/log/log.ts";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
 import { ThingModelHelpers } from "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts";
@@ -8,6 +9,7 @@ import { ThingModelHelpers } from "../../third-party/eclipse-thingweb/thing-mode
 type TmMetadata = AppManifest["wot"]["tm"];
 
 const tmTools = new ThingModelHelpers();
+const logger = getLogger(import.meta.url);
 
 export async function fetchThingModel(
   metadata: TmMetadata,
@@ -42,8 +44,8 @@ export async function fetchThingModel(
       await cache.set(metadata.href, tm);
     }
   } catch (error) {
-
- }
+    logger.warn(`Failed to cache Thing Model at ${metadata.href}: ${error}`);
+  }
 
   return tm;
 }
@@ -78,4 +80,3 @@ function validateModelVersion(
     "Model version must be a string or an object with a 'model' string",
   );
 }
-
