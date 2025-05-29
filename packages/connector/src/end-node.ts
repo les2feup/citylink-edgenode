@@ -1,32 +1,16 @@
-import type { ThingModel } from "npm:wot-thing-model-types";
-import type { ThingDescription } from "npm:wot-thing-description-types";
-import type { ExposedThingInit } from "npm:wot-typescript-definitions";
 import { AppManifest } from "./types/zod/app-manifest.ts";
 import { fetchAppManifest } from "./services/fetch-app-manifest.ts";
 import { fetchThingModel } from "./services/fetch-thing-model.ts";
 import { getLogger } from "./utils/log/log.ts";
+import { produceTD } from "./services/produce-thing-description.ts";
 import { v4 } from "jsr:@std/uuid";
-import {
-  type CompositionOptions,
-  ThingModelHelpers,
-} from "../third-party/eclipse-thingweb/thing-model/src/tm-helpers.ts";
+import type { ThingDescription } from "npm:wot-thing-description-types";
+import type {
+  TemplateMap,
+  ThingDescriptionOpts,
+} from "./types/thing-description-opts.ts";
 
-const tmTools = new ThingModelHelpers();
 const logger = getLogger(import.meta.url);
-
-export interface ProtocolTemplateMap {
-  [key: string]: unknown;
-}
-
-export interface EndNodeOpts<
-  tdmap extends ProtocolTemplateMap = ProtocolTemplateMap,
-> {
-  uuid?: string;
-  templateMap: tdmap;
-  thingDescriptionTransform?: (
-    partialTD: ExposedThingInit,
-  ) => Promise<ThingDescription>;
-}
 
 export class EndNode {
   constructor(
@@ -39,19 +23,19 @@ export class EndNode {
     }
   }
 
-  static async from<T extends ProtocolTemplateMap>(
+  static async from<tmap extends TemplateMap>(
     manifestUrl: URL,
-    opts: EndNodeOpts<T>,
+    opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode>;
 
-  static async from<T extends ProtocolTemplateMap>(
+  static async from<tmap extends TemplateMap>(
     manifest: AppManifest,
-    opts: EndNodeOpts<T>,
+    opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode>;
 
-  static async from<T extends ProtocolTemplateMap>(
+  static async from<tmap extends TemplateMap>(
     arg: AppManifest | URL,
-    opts: EndNodeOpts<T>,
+    opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode> {
     let manifest: AppManifest;
 
@@ -75,11 +59,7 @@ export class EndNode {
       );
       const tm = await fetchThingModel(manifest.wot.tm);
       logger.debug(`Thing Model: ${JSON.stringify(tm, null, 2)}`);
-      logger.info(`📝 Generating Thing Description for model "${tm.title}"`);
       const td = await produceTD(tm, opts);
-      logger.info(
-        `📝 Thing Description generated with id "${td.id}" for model "${tm.title}"`,
-      );
 
       const uuid = opts.uuid ?? td.id!.split("urn:uuid:")[1];
       return new EndNode(uuid, manifest, td);
@@ -99,30 +79,4 @@ export class EndNode {
   get appManifest(): Readonly<AppManifest> {
     return this.manifest;
   }
-}
-
-async function produceTD<
-  T extends ProtocolTemplateMap,
->(
-  model: ThingModel,
-  opts: EndNodeOpts<T>,
-): Promise<ThingDescription> {
-  if (!model.title) {
-    throw new Error("Model title is missing");
-  }
-
-  const options: CompositionOptions = {
-    map: opts.templateMap,
-    selfComposition: true,
-  };
-
-  const [partialTD] = await tmTools.getPartialTDs(model, options);
-  const td = await opts.thingDescriptionTransform?.(partialTD) ??
-    partialTD! as ThingDescription;
-  td.id = `urn:uuid:${opts.uuid ?? crypto.randomUUID()}`;
-  logger.info(
-    `New Thing Description id "${td.id}" registered for model "${model.title}"`,
-  );
-
-  return td;
 }
