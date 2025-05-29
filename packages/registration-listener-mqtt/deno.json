@@ -1,0 +1,13 @@
+{
+  "name": "citylink/edge-node/registration-listener/mqtt",
+  "version": "0.1.0",
+  "exports": "./mod.ts",
+  "tasks": {
+    "dev": "deno test --watch"
+  },
+  "nodeModulesDir": "auto",
+  "license": "GPL-3.0",
+  "imports": {
+    "citylink/edge-node/core": "../core/mod.ts"
+  }
+}
