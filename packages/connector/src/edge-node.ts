@@ -1,12 +1,8 @@
-import type { EdgeConnector } from "./edge-connector.ts";
+import type { EdgeConnector } from "./edge-connector/connector.ts";
 
-export type Compatible = {
-  title: string;
-  version: string;
-};
 
 export class EdgeNode {
-  private registeredConnectors: Map<Compatible, EdgeConnector>;
+  // private registeredConnectors: Map<Compatible, EdgeConnector>>;
   /// web api endpoints will go here
 }
 
