@@ -15,6 +15,12 @@ import type {
 import { produceTD } from "./services/produce-thing-description.ts";
 import { initLogger } from "@utils/log";
 
+// TODO: Check where the logger should be initialized
+//       It should be done once, ideally after all
+//       the modules have added their configuration
+//       fragments
+initLogger();
+
 interface RegisteredController {
   readonly td: ThingDescription;
   readonly compatible: TMCompatible;
