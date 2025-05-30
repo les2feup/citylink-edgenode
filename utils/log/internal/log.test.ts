@@ -1,6 +1,6 @@
 import type * as log from "jsr:@std/log";
 import { assertEquals } from "jsr:@std/assert";
-import { getLoggerName } from "../src/utils/log/internal/internal.ts";
+import { getLoggerName } from "./internal.ts";
 
 Deno.test("getLoggerName returns default logger for unknown module", () => {
   const config: log.LogConfig = {
