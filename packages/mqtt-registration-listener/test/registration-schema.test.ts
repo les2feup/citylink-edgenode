@@ -5,7 +5,6 @@ import { z } from "zod";
 Deno.test("valid registration with explicit tmOnly", () => {
   const input = {
     manifest: "https://example.com/manifest.json",
-    tmOnly: true,
   };
 
   const result = RegistrationSchema.parse(input);
@@ -18,7 +17,6 @@ Deno.test("valid registration with default tmOnly", () => {
   };
 
   const result = RegistrationSchema.parse(input);
-  assertEquals(result.tmOnly, false);
   assertEquals(result.manifest, input.manifest);
 });
 
@@ -31,18 +29,5 @@ Deno.test("throws when manifest is not a URL", () => {
     () => RegistrationSchema.parse(input),
     z.ZodError,
     "Invalid url",
-  );
-});
-
-Deno.test("throws when tmOnly is not a boolean", () => {
-  const input = {
-    manifest: "https://example.com/manifest.json",
-    tmOnly: "yes",
-  };
-
-  assertThrows(
-    () => RegistrationSchema.parse(input),
-    z.ZodError,
-    "Expected boolean, received string",
   );
 });
