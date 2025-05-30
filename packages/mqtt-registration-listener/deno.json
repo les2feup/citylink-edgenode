@@ -1,5 +1,5 @@
 {
-  "name": "citylink/edge-node/registration-listener/mqtt",
+  "name": "@citylink-edgc/mqtt-registration-listener",
   "version": "0.1.0",
   "exports": "./mod.ts",
   "tasks": {
