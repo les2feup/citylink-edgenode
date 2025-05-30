@@ -1,8 +1,8 @@
 import { AppManifest } from "./types/zod/app-manifest.ts";
 import { fetchAppManifest } from "./services/fetch-app-manifest.ts";
 import { fetchThingModel } from "./services/fetch-thing-model.ts";
-import { getLogger } from "./utils/log/log.ts";
 import { produceTD } from "./services/produce-thing-description.ts";
+import { getLogger } from "@utils/log";
 import { v4 } from "jsr:@std/uuid";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type {

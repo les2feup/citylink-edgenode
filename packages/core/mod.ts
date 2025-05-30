@@ -1,4 +1,11 @@
 // Library entry point for the citylink/edge-node/core module
+// setup
+
+import * as log from "@utils/log";
+import { loggers } from "./src/utils/log-config.ts";
+log.addConfigFragment(loggers);
+
+// Exports
 
 export { EndNode } from "./src/end-node.ts";
 export { EdgeConnector, EdgeConnectorFactory } from "./src/edge-connector.ts";

@@ -4,13 +4,13 @@ import type {
   TemplateMap,
   ThingDescriptionOpts,
 } from "../types/thing-description-opts.ts";
-import { getLogger } from "../utils/log/log.ts";
+import { getLogger } from "@utils/log";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
 import {
   type CompositionOptions,
   ThingModelHelpers,
-} from "../../../../third-party/eclipse-thingweb/thing-model/src/tm-helpers.ts";
+} from "@eclipse-thingweb/thing-model";
 
 const tmTools = new ThingModelHelpers();
 const logger = getLogger(import.meta.url);

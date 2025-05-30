@@ -8,6 +8,8 @@
   "nodeModulesDir": "auto",
   "license": "GPL-3.0",
   "imports": {
-    "citylink/edge-node/core": "../core/mod.ts"
+    "@citylink-edgc/core": "../core/mod.ts",
+    "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
+    "@utils/log": "../../utils/log/log.ts"
   }
 }

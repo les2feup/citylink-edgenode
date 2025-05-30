@@ -13,6 +13,7 @@ import type {
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
 import { produceTD } from "./services/produce-thing-description.ts";
+import { initLogger } from "@utils/log";
 
 interface RegisteredController {
   readonly td: ThingDescription;

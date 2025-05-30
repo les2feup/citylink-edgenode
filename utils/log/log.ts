@@ -1,7 +1,10 @@
 import { bold, dim, white } from "jsr:@std/fmt/colors";
 import { getLoggerName } from "./internal/internal.ts";
-import { loggers } from "./log-config.ts";
 import * as log from "jsr:@std/log";
+
+export type Logger = log.Logger;
+export type LogConfig = log.LogConfig;
+export type LoggerConfig = log.LoggerConfig;
 
 function hasContext(arg: unknown): arg is { $context: Record<string, string> } {
   return typeof arg === "object" && arg !== null && "$context" in arg;
@@ -60,14 +63,22 @@ const logConfig: log.LogConfig = {
       level: "INFO",
       handlers: ["console"],
     },
-    ...loggers,
   },
 };
 
-export function initLogger(
-  config: log.LogConfig = logConfig,
+export function addConfigFragment(
+  configFragment: log.LogConfig,
 ): void {
-  log.setup(config);
+  if (configFragment.handlers) {
+    logConfig.handlers = { ...logConfig.handlers, ...configFragment.handlers };
+  }
+  if (configFragment.loggers) {
+    logConfig.loggers = { ...logConfig.loggers, ...configFragment.loggers };
+  }
+}
+
+export function initLogger(): void {
+  log.setup(logConfig);
   log.info("Logger initialized.");
 }
 
