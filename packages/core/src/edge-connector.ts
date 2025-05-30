@@ -1,19 +1,18 @@
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { ThingDescription } from "npm:wot-thing-description-types";
-import type { EndNode } from "./end-node.ts";
+import type { ControllerCompatibleTM, EndNode } from "./end-node.ts";
 import type { AppManifest } from "./types/zod/app-manifest.ts";
-import type { RegistrationListener } from "./types/registration-listener.ts";
-import type { TMCompatible } from "./types/tm-compatible.ts";
 import type {
   EndNodeController,
   EndNodeControllerFactory,
 } from "./types/end-node-controller.ts";
 import type {
-  TemplateMap,
+  CityLinkTemplateMap,
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
+
 import { produceTD } from "./services/produce-thing-description.ts";
-import { initLogger } from "@utils/log";
+import { getLogger, initLogger } from "@utils/log";
 
 // TODO: Check where the logger should be initialized
 //       It should be done once, ideally after all
@@ -23,22 +22,20 @@ initLogger();
 
 interface RegisteredController {
   readonly td: ThingDescription;
-  readonly compatible: TMCompatible;
+  readonly compatible: ControllerCompatibleTM;
   readonly factory: EndNodeControllerFactory;
 }
 
-export class EdgeConnectorFactory {
-  static async produce(
-    tm: ThingModel,
-    opts: ThingDescriptionOpts<TemplateMap>,
-    regListener: RegistrationListener,
-  ): Promise<EdgeConnector> {
-    const td = await produceTD(tm, opts);
-    return new EdgeConnector(
-      td,
-      regListener,
-    );
-  }
+export interface RegistrationListener {
+  start(
+    onNodeRegistered: (
+      node: EndNode,
+    ) => Promise<void>,
+    // TODO: use onError callback in the edge connector implementation
+    onError?: (error: Error) => void,
+  ): Promise<void>;
+
+  stop(): Promise<void>;
 }
 
 export class EdgeConnector {
@@ -48,6 +45,7 @@ export class EdgeConnector {
   >();
 
   private readonly controllerRegistry: RegisteredController[] = [];
+  private readonly logger = getLogger(import.meta.url);
 
   constructor(
     readonly td: ThingDescription,
@@ -71,10 +69,10 @@ export class EdgeConnector {
 
   async registerControllerFactory(
     tm: ThingModel,
-    opts: ThingDescriptionOpts<TemplateMap>,
+    opts: ThingDescriptionOpts<CityLinkTemplateMap>,
     factory: EndNodeControllerFactory,
   ): Promise<void> {
-    const compatible: TMCompatible = {
+    const compatible: ControllerCompatibleTM = {
       title: tm.title!,
       version: typeof tm.version! === "string"
         ? tm.version!
@@ -116,12 +114,11 @@ export class EdgeConnector {
 
   private async registerNode(
     node: EndNode,
-    comp: TMCompatible,
   ): Promise<void> {
     const match = this.controllerRegistry.find(
       (entry) =>
-        entry.compatible.title === comp.title &&
-        entry.compatible.version === comp.version,
+        entry.compatible.title === node.controllerCompatible.title &&
+        entry.compatible.version === node.controllerCompatible.version,
     );
 
     if (!match) {
@@ -131,6 +128,8 @@ export class EdgeConnector {
     const controller = await match.factory.produce(node);
     this.controllers.set(node.id, controller);
     await controller.start();
+
+    this.logger.info("New node registered:", node.id);
 
     //TODO: add link to the new node's TD in the edge connector's TD
     //      or the controller's TD using the collection/item relationship

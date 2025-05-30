@@ -6,13 +6,13 @@ import { getLogger } from "@utils/log";
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
 import { ThingModelHelpers } from "@eclipse-thingweb/thing-model";
 
-type TmMetadata = AppManifest["wot"]["tm"];
-
 const tmTools = new ThingModelHelpers();
 const logger = getLogger(import.meta.url);
 
+export type TmFetchMetadata = AppManifest["wot"]["tm"];
+
 export async function fetchThingModel(
-  metadata: TmMetadata,
+  metadata: TmFetchMetadata,
 ): Promise<ThingModel> {
   const cache = getThingModelCache();
   const cachedModel = await cache.get(metadata.href);

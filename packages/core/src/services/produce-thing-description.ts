@@ -1,7 +1,7 @@
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type {
-  TemplateMap,
+  CityLinkTemplateMap,
   ThingDescriptionOpts,
 } from "../types/thing-description-opts.ts";
 import { getLogger } from "@utils/log";
@@ -15,7 +15,7 @@ import {
 const tmTools = new ThingModelHelpers();
 const logger = getLogger(import.meta.url);
 
-export async function produceTD<tmap extends TemplateMap>(
+export async function produceTD<tmap extends CityLinkTemplateMap>(
   model: ThingModel,
   opts: ThingDescriptionOpts<tmap>,
 ): Promise<ThingDescription> {
