@@ -5,10 +5,11 @@ import * as log from "@utils/log";
 import { loggers } from "./src/utils/log-config.ts";
 log.addConfigFragment(loggers);
 
+export * as log from "@utils/log";
+
 // Exports
 export { EndNode } from "./src/end-node.ts";
 export { EdgeConnector } from "./src/edge-connector.ts";
-export type { RegistrationListener } from "./src/edge-connector.ts";
 
 export type {
   AppContentTypes,

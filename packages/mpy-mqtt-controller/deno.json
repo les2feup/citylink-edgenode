@@ -10,6 +10,6 @@
   "imports": {
     "@citylink-edgc/core": "../core/mod.ts",
     "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
-    "@utils/log": "../../utils/log/log.ts"
+    "@utils/log": "../../utils/log/mod.ts"
   }
 }

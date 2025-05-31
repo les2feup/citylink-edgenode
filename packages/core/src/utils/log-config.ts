@@ -8,31 +8,19 @@ export const loggers: Record<string, log.LoggerConfig> = {
     level: "DEBUG",
     handlers: ["console"],
   },
-  "citylink.connectors": {
+  "citylink.edge-connector": {
     level: "DEBUG",
     handlers: ["console"],
   },
-  "citylink.connectors.mqtt": {
+  "citylink.end-node": {
     level: "DEBUG",
     handlers: ["console"],
   },
-  "citylink.connectors.mqtt.registration": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.controllers": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.controllers.umqttCore": {
+  "citylink.utils": {
     level: "DEBUG",
     handlers: ["console"],
   },
   "citylink.services": {
-    level: "DEBUG",
-    handlers: ["console"],
-  },
-  "citylink.services.cache": {
     level: "DEBUG",
     handlers: ["console"],
   },
