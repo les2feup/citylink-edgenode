@@ -10,9 +10,9 @@ import type { Buffer } from "node:buffer";
 import { default as mqtt } from "mqtt";
 import { RegistrationSchema } from "./types/zod/registration-schema.ts";
 import {
-  createTemplateMapMQTT,
-  type TemplateMapMQTT,
-} from "./types/zod/template-map-mqtt.ts";
+  createPlaceholderMapMQTT,
+  type PlaceholderMapMQTT,
+} from "@citylink-edgc/placeholder";
 import { ContextualLogger, log } from "@utils/log";
 
 export type { IClientOptions } from "mqtt";
@@ -236,7 +236,7 @@ export class MqttEdgeConnector extends EdgeConnector {
     }
 
     const newNodeID = crypto.randomUUID();
-    const templateMap = createTemplateMapMQTT(
+    const templateMap = createPlaceholderMapMQTT(
       this.brokerUrl.toString(),
       newNodeID,
       message.templateMapExtra,
@@ -245,7 +245,7 @@ export class MqttEdgeConnector extends EdgeConnector {
       throw new Error("Invalid template map in registration message");
     }
 
-    const opts: ThingDescriptionOpts<TemplateMapMQTT> = {
+    const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
       uuid: newNodeID,
       templateMap: templateMap,
     };

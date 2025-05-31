@@ -48,7 +48,7 @@ const affordanceFieldEntries = affordanceTypes.flatMap((type) =>
   })
 );
 
-export const TemplateMapMQTT = z
+export const PlaceholderMapMQTT = z
   .object({
     CITYLINK_ID: z.string().regex(...regexCheckID()),
     CITYLINK_HREF: z.string().regex(...regexCheckHref()),
@@ -79,34 +79,39 @@ export const TemplateMapMQTT = z
       ...regexCheckAffordance("events", "/app"),
     ),
   }).catchall(z.any())
-  .superRefine((data, ctx) => {
-    const extractUUID = (value: string): string => {
-      const match = value.toLowerCase().match(uuidPattern);
-      return match ? match[0] : "";
-    };
+  .superRefine(
+    (
+      data: Record<string, string>,
+      ctx: z.RefinementCtx,
+    ) => {
+      const extractUUID = (value: string): string => {
+        const match = value.toLowerCase().match(uuidPattern);
+        return match ? match[0] : "";
+      };
 
-    const baseUUID = extractUUID(data.CITYLINK_ID);
+      const baseUUID = extractUUID(data.CITYLINK_ID);
 
-    const allMatch = affordanceFieldEntries.every(([key]) => {
-      const anyData = data as Record<string, string>;
-      return extractUUID(anyData[key]) === baseUUID;
-    });
-
-    if (!allMatch) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "All CITYLINK UUIDs must match the one in CITYLINK_ID",
+      const allMatch = affordanceFieldEntries.every(([key]) => {
+        const anyData = data as Record<string, string>;
+        return extractUUID(anyData[key]) === baseUUID;
       });
-    }
-  });
 
-export type TemplateMapMQTT = z.infer<typeof TemplateMapMQTT>;
+      if (!allMatch) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "All CITYLINK UUIDs must match the one in CITYLINK_ID",
+        });
+      }
+    },
+  );
+
+export type PlaceholderMapMQTT = z.infer<typeof PlaceholderMapMQTT>;
 
 export function safeCreateTemplateMapMQTT(
   brokerURL: string,
   endNodeUUID: string,
   extra?: Record<string, unknown>,
-): TemplateMapMQTT | Error {
+): PlaceholderMapMQTT | Error {
   const citylink_base = `citylink/${endNodeUUID}`;
 
   const properties_base = `${citylink_base}/properties`;
@@ -132,7 +137,7 @@ export function safeCreateTemplateMapMQTT(
     ...extra,
   };
 
-  const parsedMap = TemplateMapMQTT.safeParse(map);
+  const parsedMap = PlaceholderMapMQTT.safeParse(map);
   if (!parsedMap.success) {
     console.error(JSON.stringify(parsedMap.error.format(), null, 2));
     return new Error("Invalid Template Map for MQTT");
@@ -141,11 +146,11 @@ export function safeCreateTemplateMapMQTT(
   return parsedMap.data;
 }
 
-export function createTemplateMapMQTT(
+export function createPlaceholderMapMQTT(
   brokerURL: string,
   endNodeUUID: string,
   extra?: Record<string, unknown>,
-): TemplateMapMQTT {
+): PlaceholderMapMQTT {
   const citylink_base = `citylink/${endNodeUUID}`;
 
   const properties_base = `${citylink_base}/properties`;
@@ -171,5 +176,5 @@ export function createTemplateMapMQTT(
     ...extra,
   };
 
-  return TemplateMapMQTT.parse(map);
+  return PlaceholderMapMQTT.parse(map);
 }
