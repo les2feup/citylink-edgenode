@@ -1,1 +1,1 @@
-export * from "./mqtt-map.ts";
+export { createPlaceholderMapMQTT, PlaceholderMapMQTT } from "./mqtt-map.ts";
