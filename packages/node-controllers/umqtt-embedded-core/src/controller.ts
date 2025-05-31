@@ -1,19 +1,22 @@
-import {
+import type { Buffer } from "node:buffer";
+
+import type {
   AppManifest,
-  EndNode,
+  ControllerCompatibleTM,
   EndNodeController,
   EndNodeControllerFactory,
   ThingDescription,
+  ThingDescriptionOpts,
 } from "@citylink-edgc/core";
-import type { Buffer } from "node:buffer";
+
+import { EndNode } from "@citylink-edgc/core";
 
 import { ContextualLogger, log } from "@utils/log";
-import { fetchAppManifest, WoTService } from "@citylink-edgc/core";
 import mqtt from "mqtt";
 
 import {
   createPlaceholderMapMQTT,
-  type PlaceholderMapMQTT,
+  PlaceholderMapMQTT,
 } from "@citylink-edgc/placeholder";
 
 type MqttFormOptions = {
@@ -73,6 +76,7 @@ export class UMQTTCoreControllerFactory implements EndNodeControllerFactory {
   private brokerURL: URL;
   constructor(
     brokerURL: string = "mqtt://localhost:1883",
+    private compatible: ControllerCompatibleTM,
     private withLogger: boolean = true,
     private brokerOpts?: mqtt.IClientOptions,
     private controllerOpts?: ControllerOpts,
@@ -87,6 +91,7 @@ export class UMQTTCoreControllerFactory implements EndNodeControllerFactory {
     return new Promise((resolve, _reject) => {
       const controller = new UMQTTCoreController(
         node,
+        this.compatible,
         this.brokerURL,
         this.withLogger,
         this.brokerOpts,
@@ -109,12 +114,12 @@ export class UMQTTCoreController implements EndNodeController {
   // coreDirs are not elegible for recursive deletion
   private static readonly coreDirs = ["citylink", "citylink/ext", "config"];
 
-  private otauInitPromise?: {
+  private adaptationInitPromise?: {
     resolve: () => void;
     reject: (e?: unknown) => void;
   };
 
-  private otauFinishPromise?: {
+  private adaptationFinishPromise?: {
     resolve: () => void;
     reject: (e?: unknown) => void;
   };
@@ -140,6 +145,7 @@ export class UMQTTCoreController implements EndNodeController {
 
   constructor(
     private node: EndNode,
+    private compat: ControllerCompatibleTM,
     private brokerURL: URL,
     withLogger: boolean,
     brokerOpts?: mqtt.IClientOptions,
@@ -162,6 +168,14 @@ export class UMQTTCoreController implements EndNodeController {
       subscribeEventQos: controllerOpts?.subscribeEventQos ?? 1,
       observePropertyQoS: controllerOpts?.observePropertyQoS ?? 1,
     };
+  }
+
+  get endNode(): Readonly<EndNode> {
+    throw new Error("Method not implemented.");
+  }
+
+  get compatible(): Readonly<ControllerCompatibleTM> {
+    return this.compat;
   }
 
   async start(): Promise<void> {
@@ -234,11 +248,27 @@ export class UMQTTCoreController implements EndNodeController {
   }
 
   async startAdaptation(manifest: AppManifest | URL): Promise<void> {
+    if (this.adaptationInitPromise || this.adaptationFinishPromise) {
+      this.logger?.warn(
+        `⚠️ Adaptation already in progress. Cannot start a new one.`,
+      );
+      return Promise.reject(new Error("In progress"));
+    }
+
     const placeholderMap = createPlaceholderMapMQTT(
       this.brokerURL.toString(),
       this.node.id,
+      //TODO: allow extra from the manifest
     );
-    const newNode = await EndNode.from(manifest, placeholderMap);
+
+    const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
+      uuid: this.EndNode.id,
+      templateMap: placeholderMap,
+    };
+
+    const newNode = await EndNode.from(manifest, opts);
+    const _nodeSource = await newNode.fetchSource();
+
     //TODO: fetch app source from new manifest
     return Promise.reject();
   }
@@ -260,13 +290,13 @@ export class UMQTTCoreController implements EndNodeController {
       this.logger?.warn(
         "⚠️ Device will reboot and its state will be `UNDEF` until reconnection.",
       );
-      this.otauFinishPromise = { resolve, reject };
+      this.adaptationFinishPromise = { resolve, reject };
       this.invokeAction("citylink:embeddedCore_OTAUFinish").catch((err) => {
         this.logger?.error(
           `❌ Failed to invoke OTAU init action: ${err.message}`,
         );
-        this.otauFinishPromise?.reject(err);
-        this.otauFinishPromise = undefined;
+        this.adaptationFinishPromise?.reject(err);
+        this.adaptationFinishPromise = undefined;
       });
     });
   }
@@ -398,12 +428,12 @@ export class UMQTTCoreController implements EndNodeController {
     switch (value) {
       case "OTAU":
         this.logger?.info(`🟡 Node entered OTAU mode.`);
-        if (this.otauInitPromise) {
-          this.otauInitPromise?.resolve();
-          this.otauInitPromise = undefined;
-        } else if (this.otauFinishPromise) {
+        if (this.adaptationInitPromise) {
+          this.adaptationInitPromise?.resolve();
+          this.adaptationInitPromise = undefined;
+        } else if (this.adaptationFinishPromise) {
           this.logger?.warn("Aborting current adaptation process.");
-          this.otauFinishPromise.reject(
+          this.adaptationFinishPromise.reject(
             new Error("❌Node rebooted into OTAU mode unexpectedly."),
           );
         }
@@ -421,8 +451,8 @@ export class UMQTTCoreController implements EndNodeController {
 
       case "APP":
         this.logger?.info(`🟢 Node entered to APP mode.`);
-        this.otauFinishPromise?.resolve();
-        this.otauFinishPromise = undefined;
+        this.adaptationFinishPromise?.resolve();
+        this.adaptationFinishPromise = undefined;
         break;
 
       case "UNDEF":

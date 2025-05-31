@@ -13,6 +13,7 @@
     "@citylink-edgc/core": "../../core/mod.ts",
     "@citylink-edgc/placeholder": "../../placeholder-maps/mod.ts",
     "@eclipse-thingweb/thing-model": "../../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
-    "mqtt": "npm:mqtt@^5.13.0"
+    "mqtt": "npm:mqtt@^5.13.0",
+    "zod": "npm:zod@^3.25.42"
   }
 }

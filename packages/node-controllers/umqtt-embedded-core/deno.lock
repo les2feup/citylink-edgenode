@@ -10,6 +10,7 @@
     "jsr:@std/log@*": "0.224.14",
     "jsr:@std/path@*": "1.0.8",
     "jsr:@std/uuid@*": "1.0.8",
+    "npm:@types/node@*": "22.12.0",
     "npm:@types/node@^22.15.29": "22.15.29",
     "npm:ajv-formats@*": "3.0.1_ajv@8.17.1",
     "npm:ajv@*": "8.17.1",
@@ -19,7 +20,8 @@
     "npm:wot-thing-description-types@*": "1.1.0-12-March-2025",
     "npm:wot-thing-model-types@*": "1.1.0-12-March-2025",
     "npm:wot-typescript-definitions@*": "0.8.0-SNAPSHOT.30",
-    "npm:zod@*": "3.25.42"
+    "npm:zod@*": "3.25.42",
+    "npm:zod@^3.25.42": "3.25.42"
   },
   "jsr": {
     "@std/bytes@1.0.6": {
@@ -346,7 +348,8 @@
   "workspace": {
     "dependencies": [
       "npm:@types/node@^22.15.29",
-      "npm:mqtt@^5.13.0"
+      "npm:mqtt@^5.13.0",
+      "npm:zod@^3.25.42"
     ]
   }
 }
