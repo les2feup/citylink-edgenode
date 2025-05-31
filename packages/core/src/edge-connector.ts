@@ -1,7 +1,8 @@
+import type { ContextualLogger, Logger } from "@utils/log";
 import type { ThingModel } from "npm:wot-thing-model-types";
+import type { AppManifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type { ControllerCompatibleTM, EndNode } from "./end-node.ts";
-import type { AppManifest } from "./types/zod/app-manifest.ts";
 import type {
   EndNodeController,
   EndNodeControllerFactory,
@@ -12,13 +13,7 @@ import type {
 } from "./types/thing-description-opts.ts";
 
 import { produceTD } from "./services/produce-thing-description.ts";
-import { getLogger, initLogger } from "@utils/log";
-
-// TODO: Check where the logger should be initialized
-//       It should be done once, ideally after all
-//       the modules have added their configuration
-//       fragments
-initLogger();
+import { v4 } from "jsr:@std/uuid";
 
 interface RegisteredController {
   readonly td: ThingDescription;
@@ -26,45 +21,52 @@ interface RegisteredController {
   readonly factory: EndNodeControllerFactory;
 }
 
-export interface RegistrationListener {
-  start(
-    onNodeRegistered: (
-      node: EndNode,
-    ) => Promise<void>,
-    // TODO: use onError callback in the edge connector implementation
-    onError?: (error: Error) => void,
-  ): Promise<void>;
-
-  stop(): Promise<void>;
-}
-
-export class EdgeConnector {
-  private readonly controllers = new Map<
+export abstract class EdgeConnector {
+  protected readonly controllers = new Map<
     string,
     EndNodeController
   >();
 
-  private readonly controllerRegistry: RegisteredController[] = [];
-  private readonly logger = getLogger(import.meta.url);
+  protected readonly controllerRegistry: RegisteredController[] = [];
+  protected readonly uuid: string;
+  protected logger?: Logger | ContextualLogger;
 
   constructor(
     readonly td: ThingDescription,
-    private readonly regListener: RegistrationListener,
   ) {
+    if (!v4.validate(td.id!)) {
+      throw new Error(`Invalid UUID: ${td.id!}`);
+    }
+
+    this.uuid = td.id!;
   }
 
-  async start(): Promise<void> {
-    return await this.regListener.start(this.registerNode.bind(this));
+  abstract startRegistrationListener(): Promise<void>;
+  abstract stopRegistrationListener(): Promise<void>;
+
+  async stopNodeController(
+    uuid: string,
+  ): Promise<void> {
+    const controller = this.controllers.get(uuid);
+    if (!controller) {
+      this.logger?.warn(`Controller for UUID ${uuid} not found`);
+      return;
+    }
+
+    await controller.stop();
+    this.controllers.delete(uuid);
+    this.logger?.info(`Node controller for UUID ${uuid} stopped and removed.`);
   }
 
-  async stop(): Promise<void> {
-    await this.regListener.stop();
+  async stopAllNodeControllers(): Promise<void> {
+    this.logger?.info("Stopping all node controllers...");
     await Promise.all(
       Array.from(this.controllers.values()).map((controller) =>
         controller.stop()
       ),
     );
     this.controllers.clear();
+    this.logger?.info("All node controllers stopped.");
   }
 
   async registerControllerFactory(
@@ -112,9 +114,14 @@ export class EdgeConnector {
     return controller.startAdaptation(newManifest);
   }
 
-  private async registerNode(
+  protected async startNodeController(
     node: EndNode,
   ): Promise<void> {
+    if (this.controllers.has(node.id)) {
+      this.logger?.warn(`Node ${node.id} is already registered.`);
+      return;
+    }
+
     const match = this.controllerRegistry.find(
       (entry) =>
         entry.compatible.title === node.controllerCompatible.title &&
@@ -129,7 +136,7 @@ export class EdgeConnector {
     this.controllers.set(node.id, controller);
     await controller.start();
 
-    this.logger.info("New node registered:", node.id);
+    this.logger?.info(`Node controller launched for node: ${node.id}`);
 
     //TODO: add link to the new node's TD in the edge connector's TD
     //      or the controller's TD using the collection/item relationship
