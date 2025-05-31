@@ -1,26 +1,26 @@
-import type * as log from "@utils/log";
+import type { log } from "@utils/log";
 
 //TODO: set level based on environment variable
 //Update config for new project format
 
 export const loggers: Record<string, log.LoggerConfig> = {
-  "citylink": {
+  "citylink-core": {
     level: "DEBUG",
     handlers: ["console"],
   },
-  "citylink.edge-connector": {
+  "citylink-core.edge-connector": {
     level: "DEBUG",
     handlers: ["console"],
   },
-  "citylink.end-node": {
+  "citylink-core.end-node": {
     level: "DEBUG",
     handlers: ["console"],
   },
-  "citylink.utils": {
+  "citylink-core.utils": {
     level: "DEBUG",
     handlers: ["console"],
   },
-  "citylink.services": {
+  "citylink-core.services": {
     level: "DEBUG",
     handlers: ["console"],
   },
