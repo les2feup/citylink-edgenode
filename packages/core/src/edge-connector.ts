@@ -1,4 +1,4 @@
-import type { ContextualLogger, Logger } from "@utils/log";
+import type { ContextualLogger, log } from "@utils/log";
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { AppManifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
@@ -29,7 +29,7 @@ export abstract class EdgeConnector {
 
   protected readonly controllerRegistry: RegisteredController[] = [];
   protected readonly uuid: string;
-  protected logger?: Logger | ContextualLogger;
+  protected logger?: log.Logger | ContextualLogger;
 
   constructor(
     readonly td: ThingDescription,
@@ -74,6 +74,7 @@ export abstract class EdgeConnector {
     opts: ThingDescriptionOpts<CityLinkTemplateMap>,
     factory: EndNodeControllerFactory,
   ): Promise<void> {
+    //TODO: Double check this
     const compatible: ControllerCompatibleTM = {
       title: tm.title!,
       version: typeof tm.version! === "string"

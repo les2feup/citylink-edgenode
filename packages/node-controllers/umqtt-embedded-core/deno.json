@@ -8,8 +8,11 @@
   "nodeModulesDir": "auto",
   "license": "GPL-3.0",
   "imports": {
+    "@types/node": "npm:@types/node@^22.15.29",
     "@utils/log": "../../../utils/log/mod.ts",
     "@citylink-edgc/core": "../../core/mod.ts",
-    "@eclipse-thingweb/thing-model": "../../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts"
+    "@citylink-edgc/placeholder": "../../placeholder-maps/mod.ts",
+    "@eclipse-thingweb/thing-model": "../../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
+    "mqtt": "npm:mqtt@^5.13.0"
   }
 }

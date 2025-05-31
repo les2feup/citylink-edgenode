@@ -1,7 +1,7 @@
 import { fetchAppManifest } from "./services/fetch-app-manifest.ts";
 import { fetchThingModel } from "./services/fetch-thing-model.ts";
 import { produceTD } from "./services/produce-thing-description.ts";
-import { getLogger } from "@utils/log";
+import { log } from "@utils/log";
 import { v4 } from "jsr:@std/uuid";
 
 import { AppManifest } from "./types/zod/app-manifest.ts";
@@ -12,13 +12,14 @@ import type {
 } from "./types/thing-description-opts.ts";
 import type { ThingModel } from "../mod.ts";
 
-const logger = getLogger(import.meta.url);
+const logger = log.getLogger(import.meta.url);
 
 export type ControllerCompatibleTM = {
   title: string;
   version: string;
 };
 
+//TODO: fetch manifest source
 export class EndNode {
   constructor(
     private readonly uuid: string,

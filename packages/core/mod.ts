@@ -22,12 +22,11 @@ export type {
 // WoT utilities
 import { produceTD } from "./src/services/produce-thing-description.ts";
 import { fetchThingModel } from "./src/services/fetch-thing-model.ts";
-import { fetchAppManifest } from "./src/services/fetch-app-manifest.ts";
+export { fetchAppManifest } from "./src/services/fetch-app-manifest.ts";
 
 export const WoTService = {
   produceTD,
   fetchThingModel,
-  fetchAppManifest,
 };
 
 export type { TmFetchMetadata } from "./src/services/fetch-thing-model.ts";
