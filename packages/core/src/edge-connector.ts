@@ -2,8 +2,9 @@ import type { ContextualLogger, log } from "@utils/log";
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { AppManifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
-import type { ControllerCompatibleTM, EndNode } from "./end-node.ts";
+import type { EndNode } from "./end-node.ts";
 import type {
+  ControllerCompatibleTM,
   EndNodeController,
   EndNodeControllerFactory,
 } from "./types/end-node-controller.ts";
@@ -90,9 +91,9 @@ export abstract class EdgeConnector {
     });
   }
 
-  getRegisteredNodes(): ReadonlyArray<EndNode> {
+  getRegisteredNodes(): Readonly<EndNode>[] {
     return Array.from(this.controllers.entries()).map(([_uuid, controller]) => {
-      return controller.node;
+      return controller.endNode;
     });
   }
 
@@ -101,7 +102,7 @@ export abstract class EdgeConnector {
     if (!controller) {
       return undefined;
     }
-    return controller.node;
+    return controller.endNode;
   }
 
   startNodeAdaptation(

@@ -1,13 +1,13 @@
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { AppManifest } from "../types/zod/app-manifest.ts";
 import { getThingModelCache } from "./cache-registry.ts";
-import { getLogger } from "@utils/log";
+import { log } from "@utils/log";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
 import { ThingModelHelpers } from "@eclipse-thingweb/thing-model";
 
 const tmTools = new ThingModelHelpers();
-const logger = getLogger(import.meta.url);
+const logger = log.getLogger(import.meta.url);
 
 export type TmFetchMetadata = AppManifest["wot"]["tm"];
 

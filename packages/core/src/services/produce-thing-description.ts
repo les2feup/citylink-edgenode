@@ -4,7 +4,7 @@ import type {
   CityLinkTemplateMap,
   ThingDescriptionOpts,
 } from "../types/thing-description-opts.ts";
-import { getLogger } from "@utils/log";
+import { log } from "@utils/log";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
 import {
@@ -13,7 +13,7 @@ import {
 } from "@eclipse-thingweb/thing-model";
 
 const tmTools = new ThingModelHelpers();
-const logger = getLogger(import.meta.url);
+const logger = log.getLogger(import.meta.url);
 
 export async function produceTD<tmap extends CityLinkTemplateMap>(
   model: ThingModel,

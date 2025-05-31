@@ -1,6 +1,13 @@
-import type { AppManifestCache, ThingModelCache } from "../types/cache.ts";
+import type {
+  AppContentCache,
+  AppManifestCache,
+  ThingModelCache,
+} from "../types/cache.ts";
 import type { ThingModel } from "npm:wot-thing-model-types";
-import type { AppManifest } from "../types/zod/app-manifest.ts";
+import type {
+  AppContentTypes,
+  AppManifest,
+} from "../types/zod/app-manifest.ts";
 import { InMemoryCache } from "../utils/in-memory-cache.ts";
 
 /// App Manifest Cache
@@ -34,12 +41,27 @@ export function setThingModelCache(
   thingModelCache = cache;
 }
 
+let appContentCache: AppContentCache = new InMemoryCache<
+  string,
+  AppContentTypes
+>();
+
+export function getAppContentCache(): Readonly<AppContentCache> {
+  return appContentCache;
+}
+
+export function setAppContentCache(cache: AppContentCache): void {
+  appContentCache = cache;
+}
+
 /// Utility Functions
 
 export function configure(
   appManifestCache?: AppManifestCache,
+  appContentCache?: AppContentCache,
   thingModelCache?: ThingModelCache,
 ): void {
   if (appManifestCache) setAppManifestCache(appManifestCache);
+  if (appContentCache) setAppContentCache(appContentCache);
   if (thingModelCache) setThingModelCache(thingModelCache);
 }

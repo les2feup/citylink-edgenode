@@ -15,24 +15,20 @@ export type {
 } from "./src/types/zod/app-manifest.ts";
 
 export type {
+  ControllerCompatibleTM,
   EndNodeController,
   EndNodeControllerFactory,
 } from "./src/types/end-node-controller.ts";
 
 // WoT utilities
-import { produceTD } from "./src/services/produce-thing-description.ts";
-import { fetchThingModel } from "./src/services/fetch-thing-model.ts";
+export { produceTD } from "./src/services/produce-thing-description.ts";
+export { fetchThingModel } from "./src/services/fetch-thing-model.ts";
 export { fetchAppManifest } from "./src/services/fetch-app-manifest.ts";
-
-export const WoTService = {
-  produceTD,
-  fetchThingModel,
-};
 
 export type { TmFetchMetadata } from "./src/services/fetch-thing-model.ts";
 
 export type {
-  CityLinkTemplateMap as TemplateMap,
+  CityLinkTemplateMap,
   ThingDescriptionOpts,
 } from "./src/types/thing-description-opts.ts";
 

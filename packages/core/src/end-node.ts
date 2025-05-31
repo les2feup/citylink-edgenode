@@ -11,13 +11,14 @@ import type {
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
 import type { ThingModel } from "../mod.ts";
+import type { ControllerCompatibleTM } from "./types/end-node-controller.ts";
+import type { SourceFile } from "./types/app-source.ts";
+import {
+  fetchAppSource,
+  filterSourceFetchErrors,
+} from "./services/fetch-app-source.ts";
 
 const logger = log.getLogger(import.meta.url);
-
-export type ControllerCompatibleTM = {
-  title: string;
-  version: string;
-};
 
 //TODO: fetch manifest source
 export class EndNode {
@@ -71,6 +72,20 @@ export class EndNode {
     } catch (error) {
       throw new Error(`❌EndNode instantiation failed: ${error}`);
     }
+  }
+
+  async fetchSource(): Promise<SourceFile[]> {
+    const fetchResults = await fetchAppSource(this.manifest.download);
+    const errors = filterSourceFetchErrors(fetchResults);
+    if (errors.length > 0) {
+      throw new Error(
+        `Failed to fetch app source files: ${
+          errors.map((e) => e.error.message).join(", ")
+        }`,
+      );
+    }
+
+    return fetchResults as SourceFile[];
   }
 
   get id(): Readonly<string> {
@@ -130,4 +145,10 @@ function extractControllerCompatible(tm: ThingModel): ControllerCompatibleTM {
     title: compatibleMeta.title as string,
     version: compatibleMeta.version as string,
   };
+}
+
+function filterAppFechErrors(
+  fetchResults: import("./types/app-source.ts").AppFetchResult[],
+) {
+  throw new Error("Function not implemented.");
 }

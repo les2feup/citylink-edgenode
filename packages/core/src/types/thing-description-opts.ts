@@ -24,7 +24,7 @@ export interface CityLinkTemplateMap {
 export interface ThingDescriptionOpts<
   tmap extends CityLinkTemplateMap,
 > {
-  uuid?: string;
+  uuid: string;
   templateMap: tmap;
   selfComposition?: boolean;
   thingDescriptionTransform?: (
