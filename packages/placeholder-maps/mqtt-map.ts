@@ -148,17 +148,17 @@ export function safeCreateTemplateMapMQTT(
 
 export function createPlaceholderMapMQTT(
   brokerURL: string,
-  endNodeUUID: string,
+  uuid: string,
   extra?: Record<string, unknown>,
 ): PlaceholderMapMQTT {
-  const citylink_base = `citylink/${endNodeUUID}`;
+  const citylink_base = `citylink/${uuid}`;
 
   const properties_base = `${citylink_base}/properties`;
   const actions_base = `${citylink_base}/actions`;
   const events_base = `${citylink_base}/events`;
 
   const map = {
-    CITYLINK_ID: `urn:uuid:${endNodeUUID}`,
+    CITYLINK_ID: `urn:uuid:${uuid}`,
     CITYLINK_HREF: brokerURL,
 
     CITYLINK_PROPERTY: properties_base,
