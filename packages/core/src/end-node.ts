@@ -7,7 +7,7 @@ import { v4 } from "jsr:@std/uuid";
 import { AppManifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type {
-  CityLinkTemplateMap,
+  CityLinkPlaceholderMap,
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
 import type { ThingModel } from "../mod.ts";
@@ -33,7 +33,7 @@ export class EndNode {
     }
   }
 
-  static async from<tmap extends CityLinkTemplateMap>(
+  static async from<tmap extends CityLinkPlaceholderMap>(
     arg: AppManifest | URL,
     opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode> {

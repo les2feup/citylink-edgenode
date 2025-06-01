@@ -9,7 +9,7 @@ import type {
   EndNodeControllerFactory,
 } from "./types/end-node-controller.ts";
 import type {
-  CityLinkTemplateMap,
+  CityLinkPlaceholderMap,
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
 
@@ -72,7 +72,7 @@ export abstract class EdgeConnector {
 
   async registerControllerFactory(
     tm: ThingModel,
-    opts: ThingDescriptionOpts<CityLinkTemplateMap>,
+    opts: ThingDescriptionOpts<CityLinkPlaceholderMap>,
     factory: EndNodeControllerFactory,
   ): Promise<void> {
     //TODO: Double check this

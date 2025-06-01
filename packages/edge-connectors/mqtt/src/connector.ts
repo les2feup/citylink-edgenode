@@ -247,7 +247,7 @@ export class MqttEdgeConnector extends EdgeConnector {
 
     const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
       uuid: newNodeID,
-      templateMap: templateMap,
+      placeholderMap: templateMap,
     };
 
     const node = await EndNode.from(manifestURL, opts);

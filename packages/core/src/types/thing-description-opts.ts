@@ -2,7 +2,7 @@ import type { ThingDescription } from "npm:wot-thing-description-types";
 import type { ExposedThingInit } from "npm:wot-typescript-definitions";
 
 // TODO: make into zod schema?
-export interface CityLinkTemplateMap {
+export interface CityLinkPlaceholderMap {
   CITYLINK_ID: string;
   CITYLINK_HREF: string;
 
@@ -22,10 +22,10 @@ export interface CityLinkTemplateMap {
 }
 
 export interface ThingDescriptionOpts<
-  tmap extends CityLinkTemplateMap,
+  tmap extends CityLinkPlaceholderMap,
 > {
   uuid: string;
-  templateMap: tmap;
+  placeholderMap: tmap;
   selfComposition?: boolean;
   thingDescriptionTransform?: (
     partialTD: ExposedThingInit,

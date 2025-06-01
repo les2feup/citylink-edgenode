@@ -30,7 +30,7 @@ export { fetchAppManifest } from "./src/services/fetch-app-manifest.ts";
 export type { TmFetchMetadata } from "./src/services/fetch-thing-model.ts";
 
 export type {
-  CityLinkTemplateMap,
+  CityLinkPlaceholderMap,
   ThingDescriptionOpts,
 } from "./src/types/thing-description-opts.ts";
 

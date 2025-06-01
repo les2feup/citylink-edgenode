@@ -1,7 +1,7 @@
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type {
-  CityLinkTemplateMap,
+  CityLinkPlaceholderMap,
   ThingDescriptionOpts,
 } from "../types/thing-description-opts.ts";
 import { log } from "@utils/log";
@@ -15,7 +15,7 @@ import {
 const tmTools = new ThingModelHelpers();
 const logger = log.getLogger(import.meta.url);
 
-export async function produceTD<tmap extends CityLinkTemplateMap>(
+export async function produceTD<tmap extends CityLinkPlaceholderMap>(
   model: ThingModel,
   opts: ThingDescriptionOpts<tmap>,
 ): Promise<ThingDescription> {
@@ -26,7 +26,7 @@ export async function produceTD<tmap extends CityLinkTemplateMap>(
   logger.info(`📝 Generating Thing Description for model "${model.title}"`);
 
   const options: CompositionOptions = {
-    map: opts.templateMap,
+    map: opts.placeholderMap,
     selfComposition: opts.selfComposition ?? false,
   };
 

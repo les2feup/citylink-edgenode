@@ -247,7 +247,7 @@ export class UMQTTCoreController implements EndNodeController {
 
     const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
       uuid: this.node.id,
-      templateMap: placeholderMap,
+      placeholderMap: placeholderMap,
     };
 
     // this.prevNodeConfig = this.node; // TODO: save previous config to attempt rollback if needed
