@@ -66,8 +66,8 @@ export class MqttEdgeConnector extends EdgeConnector {
     );
   }
 
-  override async startRegistrationListener(): Promise<void> {
-    this.client = await mqtt.connectAsync(
+  override startRegistrationListener(): Promise<void> {
+    this.client = mqtt.connect(
       this.brokerUrl.toString(),
       this.connectionOptions,
     );
