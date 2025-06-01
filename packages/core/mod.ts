@@ -14,6 +14,8 @@ export type {
   AppManifest,
 } from "./src/types/zod/app-manifest.ts";
 
+export type { SourceFile } from "./src/types/app-source.ts";
+
 export type {
   ControllerCompatibleTM,
   EndNodeController,

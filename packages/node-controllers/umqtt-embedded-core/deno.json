@@ -8,6 +8,7 @@
   "nodeModulesDir": "auto",
   "license": "GPL-3.0",
   "imports": {
+    "@std/encoding": "jsr:@std/encoding@^1.0.10",
     "@types/node": "npm:@types/node@^22.15.29",
     "@utils/log": "../../../utils/log/mod.ts",
     "@citylink-edgc/core": "../../core/mod.ts",

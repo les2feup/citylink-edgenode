@@ -1,67 +1,33 @@
 import type { Buffer } from "node:buffer";
-
 import type {
   AppManifest,
   ControllerCompatibleTM,
   EndNodeController,
   EndNodeControllerFactory,
+  SourceFile,
   ThingDescription,
   ThingDescriptionOpts,
 } from "@citylink-edgc/core";
-
 import { EndNode } from "@citylink-edgc/core";
-
 import { ContextualLogger, log } from "@utils/log";
 import mqtt from "mqtt";
-
 import {
   createPlaceholderMapMQTT,
-  PlaceholderMapMQTT,
+  type PlaceholderMapMQTT,
 } from "@citylink-edgc/placeholder";
+import { OTAUReport } from "./types/zod/otau-report.ts";
+import type {
+  DeleteActionInput,
+  WriteActionInput,
+} from "./types/otau-action-inputs.ts";
+import { crc32 } from "node:zlib";
+import { encodeContentBase64 } from "./utils/content-encoding.ts";
 
 type MqttFormOptions = {
   href: string;
   topic: string;
   qos?: 0 | 1 | 2;
   retain?: boolean;
-};
-
-type WriteActionInput = {
-  path: string;
-  payload: {
-    data: string;
-    hash: string;
-    algo: "crc32";
-  };
-  append?: boolean;
-};
-
-type DeleteActionInput = {
-  path: string;
-  recursive?: boolean; // If path is a directory, delete all contents recursively
-};
-
-type OTAUErrorResult = {
-  error: true;
-  message: string;
-};
-
-type OTAUWriteResult = {
-  error: false;
-  written: string;
-};
-
-type OTAUDeleteResult = {
-  error: false;
-  deleted: string[];
-};
-
-type OTAUReport = {
-  timestamp: {
-    epoch_year?: number;
-    seconds: number;
-  };
-  result: OTAUWriteResult | OTAUDeleteResult | OTAUErrorResult;
 };
 
 export type ControllerOpts = {
@@ -143,6 +109,8 @@ export class UMQTTCoreController implements EndNodeController {
   private brokerOpts: mqtt.IClientOptions;
   private controllerOpts: ControllerOpts;
 
+  // private prevNodeConfig?: EndNode;
+
   constructor(
     private node: EndNode,
     private compat: ControllerCompatibleTM,
@@ -171,7 +139,7 @@ export class UMQTTCoreController implements EndNodeController {
   }
 
   get endNode(): Readonly<EndNode> {
-    throw new Error("Method not implemented.");
+    return this.node;
   }
 
   get compatible(): Readonly<ControllerCompatibleTM> {
@@ -179,7 +147,6 @@ export class UMQTTCoreController implements EndNodeController {
   }
 
   async start(): Promise<void> {
-    // return Promise.reject("Not implemented yet");
     this.client = await mqtt.connectAsync(
       this.brokerURL.toString(),
       this.brokerOpts,
@@ -244,11 +211,28 @@ export class UMQTTCoreController implements EndNodeController {
   }
 
   stop(): Promise<void> {
-    return Promise.reject("Not implemented yet");
+    if (!this.client || !this.client.connected) {
+      this.logger?.warn("⚠️ MQTT client is not connected. Nothing to stop.");
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      this.client!.end(true, (err) => {
+        if (err) {
+          this.logger?.error(`❌ Failed to disconnect MQTT client: ${err}`);
+          reject(err);
+        } else {
+          this.logger?.info("✅ MQTT client disconnected successfully.");
+          resolve();
+        }
+      });
+    });
   }
 
   async startAdaptation(manifest: AppManifest | URL): Promise<void> {
-    if (this.adaptationInitPromise || this.adaptationFinishPromise) {
+    if (
+      this.adaptationInitPromise || this.adaptationFinishPromise
+    ) {
       this.logger?.warn(
         `⚠️ Adaptation already in progress. Cannot start a new one.`,
       );
@@ -258,23 +242,28 @@ export class UMQTTCoreController implements EndNodeController {
     const placeholderMap = createPlaceholderMapMQTT(
       this.brokerURL.toString(),
       this.node.id,
-      //TODO: allow extra from the manifest
+      //TODO: add extra field to app manifest
     );
 
     const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
-      uuid: this.EndNode.id,
+      uuid: this.node.id,
       templateMap: placeholderMap,
     };
 
-    const newNode = await EndNode.from(manifest, opts);
-    const _nodeSource = await newNode.fetchSource();
+    // this.prevNodeConfig = this.node; // TODO: save previous config to attempt rollback if needed
+    this.node = await EndNode.from(manifest, opts);
 
-    //TODO: fetch app source from new manifest
-    return Promise.reject();
-  }
-
-  get EndNode(): Readonly<EndNode> {
-    return this.node;
+    return new Promise((resolve, reject) => {
+      this.logger?.info("🔄 Starting adaptation procedure...");
+      this.adaptationInitPromise = { resolve, reject };
+      this.invokeAction("citylink:embeddedCore_OTAUInit").catch((err) => {
+        this.logger?.error(
+          `❌ Failed to invoke OTAU init action: ${err.message}`,
+        );
+        this.adaptationInitPromise?.reject(err);
+        this.adaptationInitPromise = undefined;
+      });
+    });
   }
 
   private finishAdaptation(): Promise<void> {
@@ -292,89 +281,14 @@ export class UMQTTCoreController implements EndNodeController {
       );
       this.adaptationFinishPromise = { resolve, reject };
       this.invokeAction("citylink:embeddedCore_OTAUFinish").catch((err) => {
-        this.logger?.error(
-          `❌ Failed to invoke OTAU init action: ${err.message}`,
+        this.logger?.critical(
+          `❌ Failed to invoke OTAU finish action: ${err.message}`,
         );
         this.adaptationFinishPromise?.reject(err);
         this.adaptationFinishPromise = undefined;
       });
     });
   }
-
-  // TODO: deduplicate this with EndNode.ts ...
-  // Resource fetching is duplicated with the registration procedure
-  // async otauInit(appManifestUrl: URL): Promise<void>;
-  // async otauInit(appManifest: AppManifest): Promise<void>;
-  // async otauInit(arg: URL | AppManifest): Promise<void> {
-  //   if (this.otauInitPromise || this.otauFinishPromise) {
-  //     this.logger?.warn(
-  //       "⚠️ OTAU procedure already in progress or finished. Cannot start a new one.",
-  //     );
-  //     return Promise.reject(new Error("In progress"));
-  //   }
-  //
-  //   if (this.coreStatus !== "APP") {
-  //     this.logger?.error(
-  //       `❌ Cannot start adaptation procedure in current status: ${this.coreStatus}`,
-  //     );
-  //     return Promise.reject(
-  //       new Error(`Invalid core status: ${this.coreStatus}`),
-  //     );
-  //   }
-  //
-  //   let manifest: AppManifest;
-  //   if (arg instanceof URL) {
-  //     this.logger?.info(`📥 Fetching app manifest from ${arg.toString()}`);
-  //     const fetched = await fetchAppManifest(arg);
-  //     if (fetched instanceof Error) {
-  //       this.logger?.error(
-  //         `❌ Failed to fetch app manifest: ${fetched.message}`,
-  //       );
-  //       return Promise.reject(fetched);
-  //     }
-  //     manifest = fetched;
-  //     this.logger?.info(
-  //       `📥 App manifest fetched successfully from ${arg.toString()}`,
-  //     );
-  //   } else {
-  //     manifest = arg as AppManifest;
-  //     this.logger?.info(`📥 Using provided app manifest`);
-  //   }
-  //
-  //   this.logger?.info(`📥 Fetching Thing Model for new application.`);
-  //   const tm = await WoTService.fetchThingModel(manifest.wot.tm);
-  //   if (tm instanceof Error) {
-  //     return Promise.reject(`❌ Failed to fetch Thing Model: ${tm.message}`);
-  //   }
-  //
-  //   const opts: InstantiationOpts = {
-  //     endNodeUUID: this.id,
-  //     protocol: "mqtt",
-  //   };
-  //
-  //   this.logger?.info(
-  //     `⚙️ Instantiating Thing Description from new Thing Model.`,
-  //   );
-  //
-  //   const td = await produceTD(tm, opts);
-  //   if (td instanceof Error) {
-  //     return Promise.reject(`❌ Error during TD instantiation: ${td.message}`);
-  //   }
-  //
-  //   cache.updateEndNode(this.id, { tm, td, manifest });
-  //
-  //   return new Promise((resolve, reject) => {
-  //     this.logger?.info("🔄 Starting adaptation procedure...");
-  //     this.otauInitPromise = { resolve, reject };
-  //     this.invokeAction("citylink:embeddedCore_OTAUInit").catch((err) => {
-  //       this.logger?.error(
-  //         `❌ Failed to invoke OTAU init action: ${err.message}`,
-  //       );
-  //       this.otauInitPromise?.reject(err);
-  //       this.otauInitPromise = undefined;
-  //     });
-  //   });
-  // }
 
   private handleCoreMessage(
     affordanceType: string,
@@ -446,7 +360,7 @@ export class UMQTTCoreController implements EndNodeController {
         }
 
         this.logger?.info("🔄 Over The Air Update procedure initialized.");
-        // this.adaptationFetchAndUpload();
+        this.adaptEndNode();
         break;
 
       case "APP":
@@ -477,30 +391,28 @@ export class UMQTTCoreController implements EndNodeController {
   }
 
   private handleOtauReport(value: string): void {
-    const report = JSON.parse(value);
-    if (!report || typeof report !== "object") {
-      this.logger?.error(`❌ Invalid OTAU report format: ${value}`);
-      return;
-    }
-
-    const { timestamp, result } = report as OTAUReport;
-    if (!timestamp || !result) {
+    const json = JSON.parse(value);
+    const parsed = OTAUReport.safeParse(json);
+    if (!parsed.success) {
       this.logger?.error(
-        `❌ OTAU report missing timestamp or result: ${value}`,
+        `❌ Invalid OTAU report format: ${
+          JSON.stringify(parsed.error.format(), null, 2)
+        }`,
       );
       return;
     }
 
-    const { epoch_year = 1970, seconds } = report.timestamp;
+    const { timestamp, result } = parsed.data;
+    const { epoch_year = 1970, seconds } = timestamp;
     const base = Date.UTC(epoch_year, 0, 1); // January 1st of the year
     const date = new Date(base + seconds * 1000);
-
     this.logger?.info(
       `📅 OTAU report received at ${date.toISOString()}: ${
         JSON.stringify(result, null, 2)
       }`,
     );
 
+    //TODO: change this to zod validation
     if (result.error) {
       //TODO: assert only one of these is present
       this.otauWritePromise?.reject(new Error(result.message));
@@ -517,191 +429,195 @@ export class UMQTTCoreController implements EndNodeController {
     }
   }
 
-  // private adaptationFetchAndUpload(): void {
-  //   this.adaptationInProgress = true;
-  //   this.logger?.info("📦 Downloading application source...");
-  //
-  //   fetchAppSrc(this.node.manifest.download).then((fetchResult) => {
-  //     const fetchErrors = filterAppFetchErrors(fetchResult);
-  //     if (fetchErrors.length > 0) {
-  //       this.logger?.error(
-  //         `❌ Failed to fetch application source: ${
-  //           fetchErrors.map((e) => e.error).join(", ")
-  //         }`,
-  //       );
-  //
-  //       this.logger?.critical("❗️Adaptation failed due to fetch errors.");
-  //       return;
-  //     }
-  //
-  //     const appSource = fetchResult as AppSrcFile[];
-  //     this.logger?.info(
-  //       `📦 Downloaded ${appSource.length} files for adaptation.`,
-  //     );
-  //
-  //     this.adaptEndNode(appSource).finally(() => {
-  //       this.adaptationInProgress = false;
-  //       this.logger?.info("🔄 Adaptation procedure completed.");
-  //     });
-  //   }).catch((error) => {
-  //     this.logger?.error(
-  //       `❌ Error during application source fetch: ${error.message}`,
-  //     );
-  //     this.logger?.critical("❗️Adaptation failed due to fetch error.");
-  //   });
-  // }
+  private async adaptationFetchSource(): Promise<SourceFile[]> {
+    this.logger?.info("📦 Downloading application source...");
 
-  //private async adaptEndNode(appSource: AppSrcFile[]) {
-  //  if (this.coreStatus !== "OTAU") {
-  //    this.logger?.warn(
-  //      `❌ Cannot start adaptation procedure in current status: ${this.coreStatus}`,
-  //    );
-  //    return;
-  //  }
+    const source = await this.node.fetchSource();
+    if (!source || !Array.isArray(source) || source.length === 0) {
+      this.logger?.error("❌ No application source files found.");
+      throw new Error("❗️Adaptation failed due to missing source files.");
+    }
 
-  //  //TODO: allow for customization of the type of adaptation
-  //  const hasMain = appSource.some((file) =>
-  //    file.path === "main.py" || file.path === "main.mpy"
-  //  );
-  //  if (!hasMain) {
-  //    this.logger?.error(
-  //      `❌ Application source must contain "main.py" or "main.mpy" file for adaptation.`,
-  //    );
-  //    return;
-  //  }
+    this.logger?.info(
+      `📦 Downloaded ${source.length} files for adaptation.`,
+    );
 
-  //  this.logger?.info("🔄 Starting adaptation procedure...");
-  //  // Step 1: Delete files from previous adaptation (if any)
-  //  const toDelete = this.resolveMinimumDeletions(appSource);
-  //  if (toDelete.size > 0) {
-  //    this.logger?.info(
-  //      `📤 Deleting ${toDelete.size} file(s) from previous adaptation...`,
-  //    );
-  //  }
+    return source;
+  }
 
-  //  for (const path of toDelete) {
-  //    try {
-  //      this.logger?.debug(`📤 Deleting file ${path} from end node...`);
-  //      const deletedPaths = await this.otauDelete(path, true);
-  //      this.logger?.debug(`✅ File(s) deleted: ${deletedPaths.join(", ")}`);
-  //    } catch (err) {
-  //      this.logger?.error(`❌ Failed to delete file ${path}:`, err);
-  //      // Stop on first failure
-  //      return;
-  //    }
-  //  }
+  private adaptEndNode() {
+    if (this.coreStatus !== "OTAU") {
+      this.logger?.warn(
+        `❌ Cannot start adaptation procedure in current status: ${this.coreStatus}`,
+      );
+      return;
+    }
 
-  //  this.logger?.info("📥 Writing files to end node...");
-  //  for (const file of appSource) {
-  //    try {
-  //      this.logger?.debug(`📥 Writing file ${file.path}`);
+    this.logger?.info("🔄 Starting adaptation procedure...");
+    this.adaptationInProgress = true;
 
-  //      const writtenPath = await this.otauWrite(file);
+    this.adaptationFetchSource()
+      .then(async (appSource) => {
+        const [isvalid, errorMsg] = this.isSourceValid(appSource);
+        if (!isvalid) {
+          throw new Error(errorMsg!);
+        }
 
-  //      if (writtenPath !== file.path) {
-  //        this.logger?.warn(
-  //          `⚠️ Written path "${writtenPath}" does not match expected "${file.path}".`,
-  //        );
-  //        //TODO: handle retry or rollback logic here
-  //        break; // Stop processing if mismatch
-  //      }
+        this.logger?.info("✅ New source files validated.");
 
-  //      this.logger?.debug(`✅ File ${writtenPath} written successfully.`);
+        // Step 1: Delete files from previous adaptation (if any)
+        await this.adaptationDeleteFiles(appSource);
 
-  //      // Add to adaptationReplaceSet for future deletions
-  //      if (!Controller.adaptationReplaceIgnore.includes(file.path)) {
-  //        this.adaptationReplaceSet.add(file.path);
-  //      }
-  //    } catch (err) {
-  //      this.logger?.error(`❌ Failed to write file ${file.path}:`, err);
-  //      break; // Stop on failure
-  //    }
-  //  }
+        // Step 2: Write new files to end node
+        await this.adaptationWriteFiles(appSource);
 
-  //  // if (this.prevAdaptationReplaceList.length !== appSource.length) {
-  //  //   const remaining = appSource.length -
-  //  //     this.prevAdaptationReplaceList.length;
-  //  //   this.logger?.warn(
-  //  //     `⚠️ ${remaining} file(s) were not processed due to previous errors.`,
-  //  //   );
-  //  //
-  //  //   // Optional: try to rollback or cleanup
-  //  // }
+        // Step 3: Finish adaptation
+        await this.finishAdaptation();
+      }).catch((err) => {
+        this.adaptationInProgress = false;
 
-  //  try {
-  //    await this.otauFinish();
-  //  } catch (err) {
-  //    this.logger?.error(`❌ Failed to finish OTAU procedure: ${err}`);
-  //    this.logger?.critical("❗️End node may be in an inconsistent state.");
-  //  }
-  //}
+        this.logger?.critical(err);
+        this.logger?.critical("❗️End node may be in an inconsistent state.");
+      });
+  }
 
-  // private resolveMinimumDeletions(src: AppSrcFile[]): Set<string> {
-  //   // Create a set of paths from the new src files
-  //   const newFiles = new Set(
-  //     src.map((file) => file.path),
-  //   );
-  //
-  //   // Files that need to be removed are those from the adaptationReplaceSet
-  //   // that will not be overwritten by the new src files.
-  //   return new Set<string>([...this.adaptationReplaceSet]).difference(newFiles);
-  // }
+  private isSourceValid(source: SourceFile[]): [boolean, string | null] {
+    //TODO: allow for customization of the type of adaptation
+    const hasMain = source.some((file) =>
+      file.path === "main.py" || file.path === "main.mpy"
+    );
 
-  //private otauWrite(file: AppSrcFile) {
-  //  const data = encodeContentBase64(file.content);
-  //  const hash = `0x${(crc32(data) >>> 0).toString(16)}`;
+    if (!hasMain) {
+      return [
+        false,
+        "❗️Application source must contain 'main.py' or 'main.mpy' file.",
+      ];
+    }
 
-  //  // TODO: Maybe verify this against the TD instead
-  //  const writeInput: WriteActionInput = {
-  //    path: file.path,
-  //    payload: { data, hash, algo: "crc32" },
-  //    append: false,
-  //  };
+    return [true, null];
+  }
 
-  //  return new Promise<string>((resolve, reject) => {
-  //    this.logger?.info(`📤 Writing file ${file.path} to end node...`);
-  //    this.otauWritePromise = { resolve, reject };
+  private async adaptationDeleteFiles(source: SourceFile[]): Promise<void> {
+    this.logger?.info("🔄 Starting adaptation procedure...");
+    // Step 1: Delete files from previous adaptation (if any)
 
-  //    this.invokeAction("citylink:embeddedCore_OTAUWrite", writeInput)
-  //      .catch((err) => {
-  //        this.logger?.error(`❌ Failed to write file ${file.path}:`, err);
-  //        this.otauWritePromise?.reject(err);
-  //        this.otauWritePromise = undefined;
-  //      });
-  //  });
-  //}
+    const newFilePaths = new Set(
+      source.map((file) => file.path),
+    );
 
-  //private otauDelete(
-  //  path: string,
-  //  recursive: boolean = false,
-  //): Promise<string[]> {
-  //  const deleteInput: DeleteActionInput = { path, recursive };
+    // Files that need to be removed are those from the adaptationReplaceSet
+    // that will not be overwritten by the new src files.
+    const toDelete = new Set<string>([...this.adaptationReplaceSet]).difference(
+      newFilePaths,
+    );
+    if (toDelete.size === 0) {
+      return;
+    }
 
-  //  // Reject deletion if recursive and path is a core directory
-  //  if (recursive && Controller.coreDirs.some((dir) => path.startsWith(dir))) {
-  //    this.logger?.error(
-  //      `❌ Cannot delete core directory "${path}" recursively.`,
-  //    );
-  //    return Promise.reject(
-  //      new Error(`Cannot delete core directory "${path}" recursively.`),
-  //    );
-  //  }
+    this.logger?.info(
+      `📤 Deleting ${toDelete.size} file(s) from previous adaptation...`,
+    );
 
-  //  return new Promise<string[]>((resolve, reject) => {
-  //    const delType = recursive ? "directory" : "file";
+    for (const path of toDelete) {
+      try {
+        this.logger?.debug(`📤 Deleting file ${path} from end node...`);
+        const deletedPaths = await this.otauDelete(path, true);
+        this.logger?.debug(`✅ File(s) deleted: ${deletedPaths.join(", ")}`);
+      } catch (err) {
+        this.logger?.error(`❌ Failed to delete file ${path}:`, err);
+        throw new Error("❗️Adaptation failed due to deletion error.");
+      }
+    }
+  }
 
-  //    this.logger?.info(`📤 Deleting ${delType} "${path}" from end node...`);
-  //    this.otauDeletePromise = { resolve, reject };
+  private async adaptationWriteFiles(source: SourceFile[]): Promise<void> {
+    this.logger?.info("📥 Writing files to end node...");
+    for (const file of source) {
+      try {
+        this.logger?.debug(`📥 Writing file ${file.path}`);
 
-  //    this.invokeAction("citylink:embeddedCore_OTAUDelete", deleteInput).catch(
-  //      (err) => {
-  //        this.logger?.error(`❌ Failed to delete ${delType} "${path}":`, err);
-  //        this.otauDeletePromise?.reject(err);
-  //        this.otauDeletePromise = undefined;
-  //      },
-  //    );
-  //  });
-  //}
+        const writtenPath = await this.otauWrite(file);
+
+        if (writtenPath !== file.path) {
+          this.logger?.warn(
+            `⚠️ Written path "${writtenPath}" does not match expected "${file.path}".`,
+          );
+          //TODO: handle retry or rollback logic here
+          break; // Stop processing if mismatch
+        }
+
+        this.logger?.debug(`✅ File ${writtenPath} written successfully.`);
+
+        // Add to adaptationReplaceSet for future deletions
+        if (!UMQTTCoreController.adaptationReplaceIgnore.includes(file.path)) {
+          this.adaptationReplaceSet.add(file.path);
+        }
+      } catch (err) {
+        this.logger?.error(`❌ Failed to write file ${file.path}:`, err);
+        throw new Error("❗️Adaptation failed due to write error.");
+        //TODO: handle retry or rollback logic here
+      }
+    }
+  }
+
+  private otauWrite(file: SourceFile): Promise<string> {
+    const data = encodeContentBase64(file.content);
+    const hash = `0x${(crc32(data) >>> 0).toString(16)}`;
+
+    // TODO: Maybe verify this against the TD instead
+    const writeInput: WriteActionInput = {
+      path: file.path,
+      payload: { data, hash, algo: "crc32" },
+      append: false,
+    };
+
+    return new Promise<string>((resolve, reject) => {
+      this.logger?.info(`📤 Writing file ${file.path} to end node...`);
+      this.otauWritePromise = { resolve, reject };
+
+      this.invokeAction("citylink:embeddedCore_OTAUWrite", writeInput)
+        .catch((err) => {
+          this.logger?.error(`❌ Failed to write file ${file.path}:`, err);
+          this.otauWritePromise?.reject(err);
+          this.otauWritePromise = undefined;
+        });
+    });
+  }
+
+  private otauDelete(
+    path: string,
+    recursive: boolean = false,
+  ): Promise<string[]> {
+    const deleteInput: DeleteActionInput = { path, recursive };
+
+    // Reject deletion if recursive and path is a core directory
+    if (
+      recursive &&
+      UMQTTCoreController.coreDirs.some((dir) => path.startsWith(dir))
+    ) {
+      this.logger?.error(
+        `❌ Cannot delete core directory "${path}" recursively.`,
+      );
+      return Promise.reject(
+        new Error(`Cannot delete core directory "${path}" recursively.`),
+      );
+    }
+
+    return new Promise<string[]>((resolve, reject) => {
+      const delType = recursive ? "directory" : "file";
+
+      this.logger?.info(`📤 Deleting ${delType} "${path}" from end node...`);
+      this.otauDeletePromise = { resolve, reject };
+
+      this.invokeAction("citylink:embeddedCore_OTAUDelete", deleteInput).catch(
+        (err) => {
+          this.logger?.error(`❌ Failed to delete ${delType} "${path}":`, err);
+          this.otauDeletePromise?.reject(err);
+          this.otauDeletePromise = undefined;
+        },
+      );
+    });
+  }
 
   private publish(value: unknown, opts: MqttFormOptions): Promise<void> {
     if (opts.href !== this.brokerURL.toString()) {

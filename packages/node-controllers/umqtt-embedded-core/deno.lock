@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@std/bytes@^1.0.6": "1.0.6",
     "jsr:@std/crypto@^1.0.5": "1.0.5",
+    "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/fmt@*": "1.0.8",
     "jsr:@std/fmt@^1.0.5": "1.0.8",
     "jsr:@std/fs@^1.0.11": "1.0.17",
@@ -29,6 +30,9 @@
     },
     "@std/crypto@1.0.5": {
       "integrity": "0dcfbb319fe0bba1bd3af904ceb4f948cde1b92979ec1614528380ed308a3b40"
+    },
+    "@std/encoding@1.0.10": {
+      "integrity": "8783c6384a2d13abd5e9e87a7ae0520a30e9f56aeeaa3bdf910a3eaaf5c811a1"
     },
     "@std/fmt@1.0.8": {
       "integrity": "71e1fc498787e4434d213647a6e43e794af4fd393ef8f52062246e06f7e372b7"
@@ -347,6 +351,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@std/encoding@^1.0.10",
       "npm:@types/node@^22.15.29",
       "npm:mqtt@^5.13.0",
       "npm:zod@^3.25.42"
