@@ -7,8 +7,8 @@ export type ControllerCompatibleTM = {
 };
 
 export interface EndNodeController {
-  start(): Promise<void>;
-  stop(): Promise<void>;
+  stop(): void | Promise<void>;
+  start(): void | Promise<void>;
 
   startAdaptation(manifest: AppManifest | URL): Promise<void>;
 

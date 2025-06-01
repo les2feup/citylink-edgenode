@@ -146,8 +146,8 @@ export class UMQTTCoreController implements EndNodeController {
     return this.compat;
   }
 
-  async start(): Promise<void> {
-    this.client = await mqtt.connectAsync(
+  start(): void {
+    this.client = mqtt.connect(
       this.brokerURL.toString(),
       this.brokerOpts,
     );

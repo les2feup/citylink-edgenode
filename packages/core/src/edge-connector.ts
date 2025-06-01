@@ -54,7 +54,7 @@ export abstract class EdgeConnector {
       return;
     }
 
-    await controller.stop();
+    await controller.stop(); // always await as (void) can be awaited safely
     this.controllers.delete(uuid);
     this.logger?.info(`Node controller for UUID ${uuid} stopped and removed.`);
   }
@@ -136,7 +136,7 @@ export abstract class EdgeConnector {
 
     const controller = await match.factory.produce(node);
     this.controllers.set(node.id, controller);
-    await controller.start();
+    await controller.start(); // Always await as (void) can be awaited safelly
 
     this.logger?.info(`Node controller launched for node: ${node.id}`);
 
