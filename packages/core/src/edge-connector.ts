@@ -14,7 +14,6 @@ import type {
 } from "./types/thing-description-opts.ts";
 
 import { produceTD } from "./services/produce-thing-description.ts";
-import { v4 } from "jsr:@std/uuid";
 
 interface RegisteredController {
   readonly td: ThingDescription;
@@ -35,10 +34,6 @@ export abstract class EdgeConnector {
   constructor(
     readonly td: ThingDescription,
   ) {
-    if (!v4.validate(td.id!)) {
-      throw new Error(`Invalid UUID: ${td.id!}`);
-    }
-
     this.uuid = td.id!;
   }
 
