@@ -1,8 +1,16 @@
 {
   "tasks": {
-    "dev": "deno run --watch main.ts"
+    "dev": "deno run -E -N -S -R --watch=. main.ts"
   },
   "imports": {
-    "@std/assert": "jsr:@std/assert@1"
+    "@citylink-edgc/core": "../../packages/core/mod.ts",
+    "@citylink-edgc/placeholder": "../../packages/placeholder-maps/mod.ts",
+    "@citylink-edgc/connector-mqtt": "../../packages/edge-connectors/mqtt/mod.ts",
+    "@citylink-edgc/controller-umqtt-core": "../../packages/node-controllers/umqtt-embedded-core/mod.ts",
+    "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
+    "@std/encoding": "jsr:@std/encoding@^1.0.10",
+    "@utils/log": "../../utils/log/mod.ts",
+    "mqtt": "npm:mqtt@^5.13.0",
+    "zod": "npm:zod@^3.25.46"
   }
 }
