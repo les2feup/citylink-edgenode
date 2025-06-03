@@ -33,7 +33,7 @@ export async function produceTD<tmap extends CityLinkPlaceholderMap>(
   const [partialTD] = await tmTools.getPartialTDs(model, options);
   const td = await opts.thingDescriptionTransform?.(partialTD) ??
     partialTD! as ThingDescription;
-  td.id = `urn:uuid:${opts.uuid ?? crypto.randomUUID()}`;
+  td.id = `${opts.placeholderMap.CITYLINK_ID}`;
   logger.info(
     `📝 Thing Description generated with id "${td.id}" for model "${model.title}"`,
   );

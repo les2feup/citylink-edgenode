@@ -2,7 +2,7 @@ import { MqttEdgeConnector } from "@citylink-edgc/connector-mqtt";
 import {
   UMQTTCoreControllerFactory,
 } from "@citylink-edgc/controller-umqtt-core";
-import * as citylink from "@citylink-edgc/core";
+import * as cl from "@citylink-edgc/core";
 import {
   createPlaceholderMapMQTT,
   PlaceholderMapMQTT,
@@ -22,42 +22,38 @@ initLogger();
 
 const brokerURL = "mqtt://localhost:1883";
 
-const loadTM = async (path: string): Promise<citylink.ThingModel> => {
+const loadTM = async (path: string): Promise<cl.ThingModel> => {
   const decoder = new TextDecoder("utf-8");
   const file = decoder.decode(await Deno.readFile(path));
-  return JSON.parse(file) as citylink.ThingModel;
+  return JSON.parse(file) as cl.ThingModel;
 };
 
-const edgeConTM: citylink.ThingModel = await loadTM(
+const edgeConTM: cl.ThingModel = await loadTM(
   "./ThingModels/edge-connector-mqtt.tm.json",
 );
 
-const edgeConUUID = crypto.randomUUID();
-const pmap = createPlaceholderMapMQTT(brokerURL, edgeConUUID);
-const tdOpts: citylink.ThingDescriptionOpts<PlaceholderMapMQTT> = {
-  uuid: edgeConUUID,
+const pmap = createPlaceholderMapMQTT(brokerURL, crypto.randomUUID());
+const tdOpts: cl.ThingDescriptionOpts<PlaceholderMapMQTT> = {
   placeholderMap: pmap,
   selfComposition: true,
 };
 
-const edgeConTD: citylink.ThingDescription = await citylink.produceTD(
+const edgeConTD: cl.ThingDescription = await cl.produceTD(
   edgeConTM,
   tdOpts,
 );
 
-const controllerTM: citylink.ThingModel = await loadTM(
+const controllerTM: cl.ThingModel = await loadTM(
   "./ThingModels/mqtt-mpy-core-controller.tm.json",
 );
-const controllerUUID = crypto.randomUUID();
-const conPmap = createPlaceholderMapMQTT(brokerURL, edgeConUUID);
-const conTdOpts: citylink.ThingDescriptionOpts<PlaceholderMapMQTT> = {
-  uuid: controllerUUID,
+const conPmap = createPlaceholderMapMQTT(brokerURL, crypto.randomUUID());
+const conTdOpts: cl.ThingDescriptionOpts<PlaceholderMapMQTT> = {
   placeholderMap: conPmap,
   selfComposition: true,
 };
 
 // TODO: this can be extracted from the TM
-const compatible: citylink.ControllerCompatibleTM = {
+const compatible: cl.ControllerCompatibleTM = {
   title: "MQTT MPY Core Controller",
   version: "0.1.0",
 };

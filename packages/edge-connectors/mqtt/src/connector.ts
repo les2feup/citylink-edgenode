@@ -235,10 +235,9 @@ export class MqttEdgeConnector extends EdgeConnector {
       throw new Error("Invalid manifest URL");
     }
 
-    const newNodeID = crypto.randomUUID();
     const templateMap = createPlaceholderMapMQTT(
       this.brokerUrl.toString(),
-      newNodeID,
+      crypto.randomUUID(),
       message.templateMapExtra,
     );
     if (!templateMap) {
@@ -246,7 +245,6 @@ export class MqttEdgeConnector extends EdgeConnector {
     }
 
     const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
-      uuid: newNodeID,
       placeholderMap: templateMap,
     };
 

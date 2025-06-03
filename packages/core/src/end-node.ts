@@ -67,7 +67,7 @@ export class EndNode {
       );
       const td = await produceTD(tm, opts);
 
-      const uuid = opts.uuid ?? td.id!.split("urn:uuid:")[1];
+      const uuid = td.id!.split("urn:uuid:")[1];
       return new EndNode(uuid, manifest, td, compatible);
     } catch (error) {
       throw new Error(`❌EndNode instantiation failed: ${error}`);
@@ -145,10 +145,4 @@ function extractControllerCompatible(tm: ThingModel): ControllerCompatibleTM {
     title: compatibleMeta.title as string,
     version: compatibleMeta.version as string,
   };
-}
-
-function filterAppFechErrors(
-  fetchResults: import("./types/app-source.ts").AppFetchResult[],
-) {
-  throw new Error("Function not implemented.");
 }

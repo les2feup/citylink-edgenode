@@ -246,7 +246,6 @@ export class UMQTTCoreController implements EndNodeController {
     );
 
     const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
-      uuid: this.node.id,
       placeholderMap: placeholderMap,
     };
 

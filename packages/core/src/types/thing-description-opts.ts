@@ -24,7 +24,6 @@ export interface CityLinkPlaceholderMap {
 export interface ThingDescriptionOpts<
   tmap extends CityLinkPlaceholderMap,
 > {
-  uuid: string;
   placeholderMap: tmap;
   selfComposition?: boolean;
   thingDescriptionTransform?: (
