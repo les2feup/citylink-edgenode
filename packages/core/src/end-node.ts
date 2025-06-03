@@ -1,8 +1,8 @@
 import { fetchAppManifest } from "./services/fetch-app-manifest.ts";
 import { fetchThingModel } from "./services/fetch-thing-model.ts";
 import { produceTD } from "./services/produce-thing-description.ts";
-import { log } from "@utils/log";
 import { v4 } from "jsr:@std/uuid";
+import { createLogger } from "common/log";
 
 import { AppManifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
@@ -19,6 +19,8 @@ import {
 } from "./services/fetch-app-source.ts";
 import { ThingModelHelpers } from "@eclipse-thingweb/thing-model";
 import { getTmTools } from "./services/thing-model-helpers.ts";
+
+const logger = createLogger("core", "EndNode");
 
 //TODO: fetch manifest source
 export class EndNode {
@@ -37,7 +39,6 @@ export class EndNode {
     arg: AppManifest | URL,
     opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode> {
-    const logger = log.getLogger(import.meta.url);
     let manifest: AppManifest;
 
     if (arg instanceof URL) {

@@ -9,6 +9,6 @@
   "exports": "./mod.ts",
   "imports": {
     "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
-    "@utils/log": "../../utils/log/mod.ts"
+    "common/log": "../common/logging/log.ts"
   }
 }

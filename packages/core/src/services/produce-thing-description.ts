@@ -4,7 +4,7 @@ import type {
   CityLinkPlaceholderMap,
   ThingDescriptionOpts,
 } from "../types/thing-description-opts.ts";
-import { log } from "@utils/log";
+import { createLogger } from "common/log";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
 import type { CompositionOptions } from "@eclipse-thingweb/thing-model";
@@ -14,7 +14,7 @@ export async function produceTD<tmap extends CityLinkPlaceholderMap>(
   model: ThingModel,
   opts: ThingDescriptionOpts<tmap>,
 ): Promise<ThingDescription> {
-  const logger = log.getLogger(import.meta.url);
+  const logger = createLogger("core", "produceTD");
   if (!model.title) {
     throw new Error("Model title is missing");
   }

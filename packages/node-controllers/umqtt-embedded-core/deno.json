@@ -10,9 +10,10 @@
   "imports": {
     "@std/encoding": "jsr:@std/encoding@^1.0.10",
     "@types/node": "npm:@types/node@^22.15.29",
-    "@utils/log": "../../../utils/log/mod.ts",
+    "common/log": "../../common/logging/log.ts",
+    "common/end-node-maps": "../../common/end-node-maps/mod.ts",
+    "common/td-transforms": "../../common/td-transforms/mod.ts",
     "@citylink-edgc/core": "../../core/mod.ts",
-    "@citylink-edgc/placeholder": "../../placeholder-maps/mod.ts",
     "@eclipse-thingweb/thing-model": "../../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
     "mqtt": "npm:mqtt@^5.13.0",
     "zod": "npm:zod@^3.25.42"

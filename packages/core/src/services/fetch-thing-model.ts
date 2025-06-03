@@ -1,17 +1,18 @@
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type { AppManifest } from "../types/zod/app-manifest.ts";
 import { getThingModelCache } from "./cache-registry.ts";
-import { log } from "@utils/log";
+import { createLogger } from "common/log";
 import { getTmTools } from "./thing-model-helpers.ts";
 import { ThingModelHelpers } from "@eclipse-thingweb/thing-model";
 
 export type TmFetchMetadata = AppManifest["wot"]["tm"];
 
+const logger = createLogger("core", "fetch-thing-model");
+
 //TODO: refactor this to dedup with thing-model-helpers.ts
 export async function fetchThingModel(
   metadata: TmFetchMetadata,
 ): Promise<ThingModel> {
-  const logger = log.getLogger(import.meta.url);
   const cache = getThingModelCache();
   const cachedModel = await cache.get(metadata.href);
 

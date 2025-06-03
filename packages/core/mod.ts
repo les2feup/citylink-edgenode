@@ -26,11 +26,7 @@ export const fetchers = {
 };
 
 import { produceTD } from "./src/services/produce-thing-description.ts";
-import { logConfig } from "./src/utils/log-config.ts";
-export const utils = {
-  produceTD,
-  logConfig,
-};
+export const utils = { produceTD };
 
 export type { TmFetchMetadata } from "./src/services/fetch-thing-model.ts";
 

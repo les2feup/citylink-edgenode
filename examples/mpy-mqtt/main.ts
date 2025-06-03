@@ -1,14 +1,10 @@
-import {
-  logConfig as mqttEdgeConnectorLogConfig,
-  MqttEdgeConnector,
-} from "@citylink-edgc/connector-mqtt";
+import { MqttEdgeConnector } from "@citylink-edgc/connector-mqtt";
 import {
   UMQTTCoreControllerFactory,
 } from "@citylink-edgc/controller-umqtt-core";
 import * as cl from "@citylink-edgc/core";
-import { initLogger } from "../../utils/log/log.ts";
 
-initLogger([mqttEdgeConnectorLogConfig, cl.utils.logConfig]);
+//TODO: format all logs with PINO instead of current in-message formmatting
 
 const loadTM = async (path: string): Promise<cl.ThingModel> => {
   const decoder = new TextDecoder("utf-8");

@@ -4,12 +4,13 @@
   },
   "imports": {
     "@citylink-edgc/core": "../../packages/core/mod.ts",
-    "@citylink-edgc/placeholder": "../../packages/placeholder-maps/mod.ts",
     "@citylink-edgc/connector-mqtt": "../../packages/edge-connectors/mqtt/mod.ts",
     "@citylink-edgc/controller-umqtt-core": "../../packages/node-controllers/umqtt-embedded-core/mod.ts",
     "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
     "@std/encoding": "jsr:@std/encoding@^1.0.10",
-    "@utils/log": "../../utils/log/mod.ts",
+    "common/log": "../../packages/common/logging/log.ts",
+    "common/end-node-maps": "../../packages/common/end-node-maps/mod.ts",
+    "common/td-transforms": "../../packages/common/td-transforms/mod.ts",
     "mqtt": "npm:mqtt@^5.13.0",
     "zod": "npm:zod@^3.25.46"
   }

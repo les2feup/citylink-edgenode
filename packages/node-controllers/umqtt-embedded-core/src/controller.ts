@@ -10,9 +10,10 @@ import type {
   ThingModel,
 } from "@citylink-edgc/core";
 import { EndNode } from "@citylink-edgc/core";
-import { ContextualLogger, log } from "@utils/log";
+import { createLogger } from "common/log";
+import { mqttTransforms } from "common/td-transforms";
 import mqtt from "mqtt";
-import { endNodeMaps, type EndNodeMapTypes } from "@citylink-edgc/placeholder";
+import { endNodeMaps, type EndNodeMapTypes } from "common/end-node-maps";
 import { OTAUReport } from "./types/zod/otau-report.ts";
 import type {
   DeleteActionInput,
@@ -109,7 +110,7 @@ export class UMQTTCoreController implements EndNodeController {
   };
 
   private client?: mqtt.MqttClient;
-  private logger?: ContextualLogger;
+  private logger?: ReturnType<typeof createLogger>;
   private coreStatus: CoreStatus = "UNDEF";
   private adaptationInProgress = false;
   private adaptationReplaceSet: Set<string> = new Set();
@@ -130,7 +131,7 @@ export class UMQTTCoreController implements EndNodeController {
     this.topicPrefix = `citylink/${this.node.id}/`;
 
     //TODO: tie this to environment variable OR debug package
-    this.logger = new ContextualLogger(log.getLogger(import.meta.url), {
+    this.logger = createLogger("core", "UMQTTCoreController", {
       node: this.node.id,
     });
 
@@ -255,6 +256,12 @@ export class UMQTTCoreController implements EndNodeController {
 
     const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {
       placeholderMap: placeholderMap,
+      thingDescriptionTransform: (td) => {
+        const t1 = mqttTransforms.fillPlatfromForms(td, placeholderMap);
+        return Promise.resolve(
+          mqttTransforms.createTopLevelForms(t1, placeholderMap),
+        );
+      },
     };
 
     // this.prevNodeConfig = this.node; // TODO: save previous config to attempt rollback if needed

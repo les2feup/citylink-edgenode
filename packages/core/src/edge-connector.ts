@@ -1,4 +1,4 @@
-import type { ContextualLogger, log } from "@utils/log";
+import { createLogger } from "common/log";
 import type { AppManifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type { EndNode } from "./end-node.ts";
@@ -15,7 +15,7 @@ export abstract class EdgeConnector {
 
   protected readonly controllerFactories: EndNodeControllerFactory[] = [];
   protected readonly uuid: string;
-  protected logger?: log.Logger | ContextualLogger;
+  protected logger? = createLogger("core", "EdgeConnector");
 
   constructor(
     readonly td: ThingDescription,

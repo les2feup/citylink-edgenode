@@ -9,8 +9,9 @@ import type { Buffer } from "node:buffer";
 
 import { default as mqtt } from "mqtt";
 import { RegistrationSchema } from "./types/zod/registration-schema.ts";
-import { endNodeMaps, type EndNodeMapTypes } from "@citylink-edgc/placeholder";
-import { ContextualLogger, log } from "@utils/log";
+import { endNodeMaps, type EndNodeMapTypes } from "common/end-node-maps";
+import { createLogger } from "common/log";
+import { mqttTransforms } from "common/td-transforms";
 
 export type { IClientOptions } from "mqtt";
 
@@ -31,8 +32,8 @@ export class MqttEdgeConnector extends EdgeConnector {
     connectionOptions?: mqtt.IClientOptions,
   ) {
     super(td);
-    this.logger = new ContextualLogger(log.getLogger(import.meta.url), {
-      EdgeConMqtt: this.uuid,
+    this.logger = createLogger("MqttEdgeConnector", "connector", {
+      ConnectorID: this.uuid,
     });
 
     // Find the href for the registration action of the form that has the invokeaction
@@ -49,7 +50,8 @@ export class MqttEdgeConnector extends EdgeConnector {
     this.brokerUrl = URL.parse(href)!;
 
     this.logger?.info(
-      `Creating MQTT Edge Connector for broker: ${this.brokerUrl}`,
+      { BrokerURL: this.brokerUrl.toString() },
+      `Creating MQTT Edge Connector`,
     );
 
     this.connectionOptions = {
@@ -60,7 +62,7 @@ export class MqttEdgeConnector extends EdgeConnector {
     };
 
     this.logger?.debug(
-      `Connection options: ${JSON.stringify(this.connectionOptions)}`,
+      { ConnectionOpts: this.connectionOptions },
     );
   }
 
@@ -79,7 +81,8 @@ export class MqttEdgeConnector extends EdgeConnector {
         client.subscribe("citylink/+/registration", (err) => {
           if (err) {
             this.logger?.error(
-              `Failed to subscribe to registration topic: ${err}`,
+              { Error: err },
+              `Failed to subscribe to registration topic`,
             );
             reject(err);
           } else {
@@ -143,7 +146,7 @@ export class MqttEdgeConnector extends EdgeConnector {
       this.nodesWaitingRegistration.delete(id);
       this.logger?.info(`Node ${id} registered successfully.`);
     } catch (e) {
-      this.logger?.error(`Node registration failed for ${id}:`, e);
+      this.logger?.error({ Error: e }, `Node registration failed for ${id}:`);
 
       await this.controllers.get(id)?.stop();
       this.controllers.delete(id);
@@ -173,7 +176,10 @@ export class MqttEdgeConnector extends EdgeConnector {
     return new Promise<void>((resolve, reject) => {
       this.client!.end(false, (err) => {
         if (err) {
-          this.logger?.error(`Failed to disconnect from MQTT broker: ${err}`);
+          this.logger?.error(
+            { Error: err },
+            `Failed to disconnect from MQTT broker`,
+          );
           reject(err);
         } else {
           this.logger?.info("Disconnected from MQTT broker.");
@@ -233,17 +239,23 @@ export class MqttEdgeConnector extends EdgeConnector {
       throw new Error("Invalid manifest URL");
     }
 
-    const templateMap = endNodeMaps.mqtt.create(
+    const placeholderMap = endNodeMaps.mqtt.create(
       this.brokerUrl.toString(),
       crypto.randomUUID(),
       message.templateMapExtra,
     );
-    if (!templateMap) {
+    if (!placeholderMap) {
       throw new Error("Invalid template map in registration message");
     }
 
     const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {
-      placeholderMap: templateMap,
+      placeholderMap,
+      thingDescriptionTransform: (td) => {
+        const t1 = mqttTransforms.fillPlatfromForms(td, placeholderMap);
+        return Promise.resolve(
+          mqttTransforms.createTopLevelForms(t1, placeholderMap),
+        );
+      },
     };
 
     const node = await EndNode.from(manifestURL, opts);
