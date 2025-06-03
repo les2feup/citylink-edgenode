@@ -1,25 +1,11 @@
 import type { ContextualLogger, log } from "@utils/log";
-import type { ThingModel } from "npm:wot-thing-model-types";
 import type { AppManifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type { EndNode } from "./end-node.ts";
 import type {
-  ControllerCompatibleTM,
   EndNodeController,
   EndNodeControllerFactory,
 } from "./types/end-node-controller.ts";
-import type {
-  CityLinkPlaceholderMap,
-  ThingDescriptionOpts,
-} from "./types/thing-description-opts.ts";
-
-import { produceTD } from "./services/produce-thing-description.ts";
-
-interface RegisteredController {
-  readonly td: ThingDescription;
-  readonly compatible: ControllerCompatibleTM;
-  readonly factory: EndNodeControllerFactory;
-}
 
 export abstract class EdgeConnector {
   protected readonly controllers = new Map<
@@ -27,7 +13,7 @@ export abstract class EdgeConnector {
     EndNodeController
   >();
 
-  protected readonly controllerRegistry: RegisteredController[] = [];
+  protected readonly controllerFactories: EndNodeControllerFactory[] = [];
   protected readonly uuid: string;
   protected logger?: log.Logger | ContextualLogger;
 
@@ -65,25 +51,19 @@ export abstract class EdgeConnector {
     this.logger?.info("All node controllers stopped.");
   }
 
-  async registerControllerFactory(
-    tm: ThingModel,
-    opts: ThingDescriptionOpts<CityLinkPlaceholderMap>,
+  registerControllerFactory(
     factory: EndNodeControllerFactory,
-  ): Promise<void> {
-    //TODO: Double check this
-    const compatible: ControllerCompatibleTM = {
-      title: tm.title!,
-      version: typeof tm.version! === "string"
-        ? tm.version!
-        : tm.version!.model!,
-    };
-
-    const td = await produceTD(tm, opts);
-    this.controllerRegistry.push({
-      td,
-      compatible,
-      factory,
-    });
+  ) {
+    //Check if any registered fatory has the same compatible as the new
+    if (
+      this.controllerFactories.some((fac) =>
+        fac.compatible.title === factory.compatible.title &&
+        fac.compatible.version === factory.compatible.version
+      )
+    ) {
+      throw new Error("Trying to register duplicate factory");
+    }
+    this.controllerFactories.push(factory);
   }
 
   getRegisteredNodes(): Readonly<EndNode>[] {
@@ -119,17 +99,17 @@ export abstract class EdgeConnector {
       return;
     }
 
-    const match = this.controllerRegistry.find(
+    const factory = this.controllerFactories.find(
       (entry) =>
         entry.compatible.title === node.controllerCompatible.title &&
         entry.compatible.version === node.controllerCompatible.version,
     );
 
-    if (!match) {
+    if (!factory) {
       throw new Error(`No compatible controller for node ${node.id}`);
     }
 
-    const controller = await match.factory.produce(node);
+    const controller = await factory.produce(node);
     this.controllers.set(node.id, controller);
     await controller.start(); // Always await as (void) can be awaited safelly
 

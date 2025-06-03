@@ -1,11 +1,8 @@
-import type { log } from "@utils/log";
-
-//TODO: set level based on environment variable
-//Update config for new project format
-
-export const loggers: Record<string, log.LoggerConfig> = {
-  "citylink-edgecon-mqtt": {
-    level: "DEBUG",
-    handlers: ["console"],
+export const logConfig = {
+  loggers: {
+    "citylink:mqtt-connector": {
+      level: "DEBUG",
+      handlers: ["console"],
+    },
   },
 };

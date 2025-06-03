@@ -60,25 +60,28 @@ const logConfig: log.LogConfig = {
   },
   loggers: {
     default: {
-      level: "INFO",
+      level: "DEBUG",
       handlers: ["console"],
     },
   },
 };
 
-export function addConfigFragment(
-  configFragment: log.LogConfig,
+export function initLogger(
+  configFragments?: Partial<log.LogConfig[]>,
 ): void {
-  if (configFragment.handlers) {
-    logConfig.handlers = { ...logConfig.handlers, ...configFragment.handlers };
+  for (const fragment of configFragments || []) {
+    if (fragment?.handlers) {
+      logConfig.handlers = { ...logConfig.handlers, ...fragment.handlers };
+    }
+    if (fragment?.loggers) {
+      logConfig.loggers = { ...logConfig.loggers, ...fragment.loggers };
+    }
   }
-  if (configFragment.loggers) {
-    logConfig.loggers = { ...logConfig.loggers, ...configFragment.loggers };
-  }
-}
 
-export function initLogger(): void {
   log.setup(logConfig);
+  log.debug("Initialed logger with config:");
+  log.debug(JSON.stringify(logConfig, null, 2));
+
   log.info("Logger initialized.");
 }
 

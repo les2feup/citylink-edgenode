@@ -18,4 +18,5 @@ export interface EndNodeController {
 
 export interface EndNodeControllerFactory {
   produce(node: EndNode): Promise<EndNodeController>;
+  get compatible(): Readonly<ControllerCompatibleTM>;
 }

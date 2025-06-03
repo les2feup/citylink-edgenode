@@ -9,10 +9,7 @@ import type { Buffer } from "node:buffer";
 
 import { default as mqtt } from "mqtt";
 import { RegistrationSchema } from "./types/zod/registration-schema.ts";
-import {
-  createPlaceholderMapMQTT,
-  type PlaceholderMapMQTT,
-} from "@citylink-edgc/placeholder";
+import { endNodeMaps, type EndNodeMapTypes } from "@citylink-edgc/placeholder";
 import { ContextualLogger, log } from "@utils/log";
 
 export type { IClientOptions } from "mqtt";
@@ -25,33 +22,34 @@ type RegistrationReply = {
 
 export class MqttEdgeConnector extends EdgeConnector {
   private client?: mqtt.MqttClient;
-
   private readonly brokerUrl: URL;
   private readonly connectionOptions: mqtt.IClientOptions;
-
   private readonly nodesWaitingRegistration = new Set<string>();
 
   constructor(
     td: ThingDescription,
-    brokerUrl: string,
-    enableLogging: boolean = false,
     connectionOptions?: mqtt.IClientOptions,
   ) {
     super(td);
+    this.logger = new ContextualLogger(log.getLogger(import.meta.url), {
+      EdgeConMqtt: this.uuid,
+    });
 
-    if (enableLogging) {
-      this.logger = new ContextualLogger(log.getLogger(import.meta.url), {
-        EdgeConMqtt: this.uuid,
-      });
-    }
+    // Find the href for the registration action of the form that has the invokeaction
+    // op type. Technically any op type would be fine, but this way is more correct
+    const href = this.td.actions!.registration.forms.find((f) =>
+      f.op &&
+      ((typeof f.op === "string" && f.op === "invokeaction") ||
+        (f.op instanceof Array && f.op.some((kind) => kind === "invokeaction")))
+    )!.href;
 
-    if (!URL.canParse(brokerUrl)) {
-      throw new Error(`Invalid broker URL: ${brokerUrl}`);
+    if (!URL.canParse(href)) {
+      throw new Error(`Invalid broker URL: ${href}`);
     }
-    this.brokerUrl = URL.parse(brokerUrl)!;
+    this.brokerUrl = URL.parse(href)!;
 
     this.logger?.info(
-      `Creating MQTT Edge Connector for broker: ${brokerUrl}`,
+      `Creating MQTT Edge Connector for broker: ${this.brokerUrl}`,
     );
 
     this.connectionOptions = {
@@ -235,7 +233,7 @@ export class MqttEdgeConnector extends EdgeConnector {
       throw new Error("Invalid manifest URL");
     }
 
-    const templateMap = createPlaceholderMapMQTT(
+    const templateMap = endNodeMaps.mqtt.create(
       this.brokerUrl.toString(),
       crypto.randomUUID(),
       message.templateMapExtra,
@@ -244,7 +242,7 @@ export class MqttEdgeConnector extends EdgeConnector {
       throw new Error("Invalid template map in registration message");
     }
 
-    const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
+    const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {
       placeholderMap: templateMap,
     };
 

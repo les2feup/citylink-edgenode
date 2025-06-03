@@ -7,18 +7,14 @@ import type {
 import { log } from "@utils/log";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
-import {
-  type CompositionOptions,
-  ThingModelHelpers,
-} from "@eclipse-thingweb/thing-model";
-
-const tmTools = new ThingModelHelpers();
-const logger = log.getLogger(import.meta.url);
+import type { CompositionOptions } from "@eclipse-thingweb/thing-model";
+import { getTmTools } from "./thing-model-helpers.ts";
 
 export async function produceTD<tmap extends CityLinkPlaceholderMap>(
   model: ThingModel,
   opts: ThingDescriptionOpts<tmap>,
 ): Promise<ThingDescription> {
+  const logger = log.getLogger(import.meta.url);
   if (!model.title) {
     throw new Error("Model title is missing");
   }
@@ -26,11 +22,16 @@ export async function produceTD<tmap extends CityLinkPlaceholderMap>(
   logger.info(`📝 Generating Thing Description for model "${model.title}"`);
 
   const options: CompositionOptions = {
+    baseUrl: opts.baseUrl,
     map: opts.placeholderMap,
-    selfComposition: opts.selfComposition ?? false,
+    selfComposition: true,
+    //TODO: this whole functions needs to be refactored to support correctly support TMs without self-composition
+    //      In fact, what we need is a way to generate partial TDs from TMs without self-compositon and then
+    //      composed them afterwards if desired. This would allow for pre-processing before the final TD generation.
+    //      It would also allow to cache partial TDs maybe.
   };
 
-  const [partialTD] = await tmTools.getPartialTDs(model, options);
+  const [partialTD] = await getTmTools().getPartialTDs(model, options);
   const td = await opts.thingDescriptionTransform?.(partialTD) ??
     partialTD! as ThingDescription;
   td.id = `${opts.placeholderMap.CITYLINK_ID}`;

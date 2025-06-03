@@ -17,8 +17,8 @@ import {
   fetchAppSource,
   filterSourceFetchErrors,
 } from "./services/fetch-app-source.ts";
-
-const logger = log.getLogger(import.meta.url);
+import { ThingModelHelpers } from "@eclipse-thingweb/thing-model";
+import { getTmTools } from "./services/thing-model-helpers.ts";
 
 //TODO: fetch manifest source
 export class EndNode {
@@ -37,6 +37,7 @@ export class EndNode {
     arg: AppManifest | URL,
     opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode> {
+    const logger = log.getLogger(import.meta.url);
     let manifest: AppManifest;
 
     if (arg instanceof URL) {
@@ -58,13 +59,7 @@ export class EndNode {
         `📦 Creating EndNode from Thing Model: ${manifest.wot.tm.href}`,
       );
       const tm = await fetchThingModel(manifest.wot.tm);
-      const compatible: ControllerCompatibleTM = extractControllerCompatible(
-        tm,
-      );
-      logger.debug(`Thing Model: ${JSON.stringify(tm, null, 2)}`);
-      logger.debug(
-        `Controller Compatible TM: ${JSON.stringify(compatible, null, 2)}`,
-      );
+      const compatible = await resolveControllerCompatible(tm);
       const td = await produceTD(tm, opts);
 
       const uuid = td.id!.split("urn:uuid:")[1];
@@ -105,44 +100,52 @@ export class EndNode {
   }
 }
 
-function extractControllerCompatible(tm: ThingModel): ControllerCompatibleTM {
-  const compatibleRaw = tm.properties?.["citylink:embeddedCore_compatible"];
-  if (!compatibleRaw) {
+export async function resolveControllerCompatible(
+  tm: ThingModel,
+): Promise<ControllerCompatibleTM> {
+  const embeddedCoreLink = tm.links!.find((link) =>
+    (link.instanceName ?? "") === ("citylink:embeddedCore")
+  );
+  if (!embeddedCoreLink) {
+    throw new Error("Thing Model does not have an embedded core link");
+  }
+
+  const embeddedCoreTM = await getTmTools().fetchModel(embeddedCoreLink.href!);
+  if (!embeddedCoreTM) {
     throw new Error(
-      `Thing Model ${tm.title} does not have compatible property`,
+      `Failed to fetch embedded core Thing Model from ${embeddedCoreLink.href}`,
     );
   }
 
-  const compatibleMeta = {
-    title: compatibleRaw.properties?.modelTitle?.const,
-    titleType: compatibleRaw.properties?.modelTitle?.type,
-    version: compatibleRaw.properties?.modelVersion?.const,
-    versionType: compatibleRaw.properties?.modelVersion?.type,
-  };
-
-  if (
-    compatibleMeta.titleType !== "string" ||
-    compatibleMeta.versionType !== "string"
-  ) {
+  const controllerLink = embeddedCoreTM.links!.find((link) =>
+    (link.rel ?? "") === ("controlledBy")
+  );
+  if (!controllerLink) {
     throw new Error(
-      `Thing Model ${tm.title} has incompatible types for compatible property: ${
-        JSON.stringify(
-          compatibleMeta,
-        )
-      }`,
+      `Embedded core Thing Model does not have a controlledBy link`,
     );
   }
 
-  if (!compatibleMeta.title || !compatibleMeta.version) {
+  const controllerTM = await getTmTools().fetchModel(controllerLink.href!);
+  if (!controllerTM) {
     throw new Error(
-      `Thing Model ${tm.title} has invalid compatible property: ${
-        JSON.stringify(compatibleMeta)
-      }`,
+      `Failed to fetch controller Thing Model from ${controllerLink.href}`,
     );
   }
 
-  return {
-    title: compatibleMeta.title as string,
-    version: compatibleMeta.version as string,
-  };
+  const title = controllerTM.title;
+  if (!title) {
+    throw new Error(
+      `Controller Thing Model at ${controllerLink.href} is missing a title`,
+    );
+  }
+
+  const version = ThingModelHelpers.getModelVersion(controllerTM);
+  if (!version) {
+    throw new Error(
+      `Controller Thing Model at ${controllerLink.href} is missing a version`,
+    );
+  }
+
+  return { title, version };
 }

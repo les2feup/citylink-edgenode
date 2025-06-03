@@ -1,10 +1,6 @@
 // Library entry point for the citylink/edge-node/core module
 // setup
 
-import { log } from "@utils/log";
-import { loggers } from "./src/utils/log-config.ts";
-log.addConfigFragment(loggers);
-
 // Exports
 export { EndNode } from "./src/end-node.ts";
 export { EdgeConnector } from "./src/edge-connector.ts";
@@ -22,10 +18,19 @@ export type {
   EndNodeControllerFactory,
 } from "./src/types/end-node-controller.ts";
 
-// WoT utilities
-export { produceTD } from "./src/services/produce-thing-description.ts";
-export { fetchThingModel } from "./src/services/fetch-thing-model.ts";
-export { fetchAppManifest } from "./src/services/fetch-app-manifest.ts";
+import { fetchThingModel } from "./src/services/fetch-thing-model.ts";
+import { fetchAppManifest } from "./src/services/fetch-app-manifest.ts";
+export const fetchers = {
+  fetchThingModel,
+  fetchAppManifest,
+};
+
+import { produceTD } from "./src/services/produce-thing-description.ts";
+import { logConfig } from "./src/utils/log-config.ts";
+export const utils = {
+  produceTD,
+  logConfig,
+};
 
 export type { TmFetchMetadata } from "./src/services/fetch-thing-model.ts";
 

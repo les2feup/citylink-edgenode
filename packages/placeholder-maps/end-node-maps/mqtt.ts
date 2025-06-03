@@ -48,7 +48,7 @@ const affordanceFieldEntries = affordanceTypes.flatMap((type) =>
   })
 );
 
-export const PlaceholderMapMQTT = z
+export const pmap = z
   .object({
     CITYLINK_ID: z.string().regex(...regexCheckID()),
     CITYLINK_HREF: z.string().regex(...regexCheckHref()),
@@ -105,13 +105,13 @@ export const PlaceholderMapMQTT = z
     },
   );
 
-export type PlaceholderMapMQTT = z.infer<typeof PlaceholderMapMQTT>;
+export type MqttMapType = z.infer<typeof pmap>;
 
-export function safeCreateTemplateMapMQTT(
+export function safeCreate(
   brokerURL: string,
   endNodeUUID: string,
   extra?: Record<string, unknown>,
-): PlaceholderMapMQTT | Error {
+): MqttMapType | Error {
   const citylink_base = `citylink/${endNodeUUID}`;
 
   const properties_base = `${citylink_base}/properties`;
@@ -137,20 +137,19 @@ export function safeCreateTemplateMapMQTT(
     ...extra,
   };
 
-  const parsedMap = PlaceholderMapMQTT.safeParse(map);
+  const parsedMap = pmap.safeParse(map);
   if (!parsedMap.success) {
-    console.error(JSON.stringify(parsedMap.error.format(), null, 2));
     return new Error("Invalid Template Map for MQTT");
   }
 
   return parsedMap.data;
 }
 
-export function createPlaceholderMapMQTT(
+export function create(
   brokerURL: string,
   uuid: string,
   extra?: Record<string, unknown>,
-): PlaceholderMapMQTT {
+): MqttMapType {
   const citylink_base = `citylink/${uuid}`;
 
   const properties_base = `${citylink_base}/properties`;
@@ -176,5 +175,5 @@ export function createPlaceholderMapMQTT(
     ...extra,
   };
 
-  return PlaceholderMapMQTT.parse(map);
+  return pmap.parse(map);
 }

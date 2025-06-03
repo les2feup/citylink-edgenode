@@ -7,14 +7,12 @@ import type {
   SourceFile,
   ThingDescription,
   ThingDescriptionOpts,
+  ThingModel,
 } from "@citylink-edgc/core";
 import { EndNode } from "@citylink-edgc/core";
 import { ContextualLogger, log } from "@utils/log";
 import mqtt from "mqtt";
-import {
-  createPlaceholderMapMQTT,
-  type PlaceholderMapMQTT,
-} from "@citylink-edgc/placeholder";
+import { endNodeMaps, type EndNodeMapTypes } from "@citylink-edgc/placeholder";
 import { OTAUReport } from "./types/zod/otau-report.ts";
 import type {
   DeleteActionInput,
@@ -40,28 +38,38 @@ type CoreStatus = (typeof CoreStatusValues)[number];
 
 export class UMQTTCoreControllerFactory implements EndNodeControllerFactory {
   private brokerURL: URL;
+  private compat: ControllerCompatibleTM;
   constructor(
-    brokerURL: string = "mqtt://localhost:1883",
-    private compatible: ControllerCompatibleTM,
-    private withLogger: boolean = true,
+    tm: ThingModel,
+    _opts?: ThingDescriptionOpts,
+    brokerURL?: string,
     private brokerOpts?: mqtt.IClientOptions,
-    private controllerOpts?: ControllerOpts,
   ) {
-    if (!URL.canParse(brokerURL)) {
-      throw new Error(`Invalid broker URL: ${brokerURL}`);
+    const url = brokerURL ?? "mqtt://localhost:1883";
+    if (!URL.canParse(url)) {
+      throw new Error(`Invalid broker URL: ${url}`);
     }
-    this.brokerURL = URL.parse(brokerURL)!;
+    this.brokerURL = URL.parse(url)!;
+
+    this.compat = {
+      title: tm.title!,
+      version: typeof tm.version! === "string"
+        ? tm.version!
+        : tm.version!.model!,
+    };
+  }
+
+  get compatible(): Readonly<ControllerCompatibleTM> {
+    return this.compat;
   }
 
   produce(node: EndNode): Promise<EndNodeController> {
     return new Promise((resolve, _reject) => {
       const controller = new UMQTTCoreController(
         node,
-        this.compatible,
+        this.compat,
         this.brokerURL,
-        this.withLogger,
         this.brokerOpts,
-        this.controllerOpts,
       );
       resolve(controller);
     });
@@ -107,43 +115,43 @@ export class UMQTTCoreController implements EndNodeController {
   private adaptationReplaceSet: Set<string> = new Set();
   private topicPrefix: string;
   private brokerOpts: mqtt.IClientOptions;
-  private controllerOpts: ControllerOpts;
+  private controllerOpts: ControllerOpts; // TODO: tie this to ThingDescription
+  private compat;
 
   // private prevNodeConfig?: EndNode;
 
   constructor(
     private node: EndNode,
-    private compat: ControllerCompatibleTM,
+    compatible: ControllerCompatibleTM,
     private brokerURL: URL,
-    withLogger: boolean,
     brokerOpts?: mqtt.IClientOptions,
-    controllerOpts?: ControllerOpts,
   ) {
+    this.compat = compatible;
     this.topicPrefix = `citylink/${this.node.id}/`;
-    if (withLogger) {
-      this.logger = new ContextualLogger(log.getLogger(import.meta.url), {
-        node: this.node.id,
-      });
-    }
+
+    //TODO: tie this to environment variable OR debug package
+    this.logger = new ContextualLogger(log.getLogger(import.meta.url), {
+      node: this.node.id,
+    });
 
     this.brokerOpts = {
       ...brokerOpts,
-      clientId: `citylink-controller-${this.node.id}`,
+      clientId: `citylink-umqttCoreController-${this.node.id}`,
       clean: true, // Double Check
     };
 
     this.controllerOpts = {
-      subscribeEventQos: controllerOpts?.subscribeEventQos ?? 1,
-      observePropertyQoS: controllerOpts?.observePropertyQoS ?? 1,
+      subscribeEventQos: 1,
+      observePropertyQoS: 1,
     };
-  }
-
-  get endNode(): Readonly<EndNode> {
-    return this.node;
   }
 
   get compatible(): Readonly<ControllerCompatibleTM> {
     return this.compat;
+  }
+
+  get endNode(): Readonly<EndNode> {
+    return this.node;
   }
 
   start(): void {
@@ -239,13 +247,13 @@ export class UMQTTCoreController implements EndNodeController {
       return Promise.reject(new Error("In progress"));
     }
 
-    const placeholderMap = createPlaceholderMapMQTT(
+    const placeholderMap = endNodeMaps.mqtt.create(
       this.brokerURL.toString(),
       this.node.id,
       //TODO: add extra field to app manifest
     );
 
-    const opts: ThingDescriptionOpts<PlaceholderMapMQTT> = {
+    const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {
       placeholderMap: placeholderMap,
     };
 
