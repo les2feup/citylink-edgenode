@@ -22,7 +22,7 @@
         }
     },
     "actions": {
-        "endNodeRegistration": {
+        "registration": {
             "title": "End Node Registration",
             "description": "Register a new end node with the connector.",
             "forms": [
@@ -30,9 +30,7 @@
                     "href": "{{CITYLINK_HREF}}",
                     "mqv:topic": "citylink/{nodeID}/registration",
                     "contentType": "application/json",
-                    "op": [
-                        "invokeaction"
-                    ],
+                    "op": "invokeaction",
                     "mqv:qos": 2,
                     "mqv:retain": false
                 }
