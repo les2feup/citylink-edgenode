@@ -22,7 +22,6 @@ import { getTmTools } from "./services/thing-model-helpers.ts";
 
 const logger = createLogger("core", "EndNode");
 
-//TODO: fetch manifest source
 export class EndNode {
   constructor(
     private readonly uuid: string,
