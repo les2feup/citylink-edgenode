@@ -1,13 +1,15 @@
 import { z } from "zod";
 
-export const OTAUDeleteResult = z.object({
-  error: z.literal(false),
-  deleted: z.array(z.string()),
-});
-
 export const OTAUWriteResult = z.object({
   error: z.literal(false),
   written: z.string(),
+  deleted: z.never().optional(), // to prevent overlap
+});
+
+export const OTAUDeleteResult = z.object({
+  error: z.literal(false),
+  deleted: z.array(z.string()),
+  written: z.never().optional(),
 });
 
 export const OTAUErrorResult = z.object({
@@ -15,19 +17,22 @@ export const OTAUErrorResult = z.object({
   message: z.string(),
 });
 
+export const OTAUResult = z.discriminatedUnion("error", [
+  OTAUDeleteResult,
+  OTAUWriteResult,
+  OTAUErrorResult,
+]);
+
 export const OTAUReport = z.object({
   timestamp: z.object({
     epoch_year: z.number().optional(),
     seconds: z.number(),
   }),
-  result: z.union([
-    OTAUDeleteResult,
-    OTAUWriteResult,
-    OTAUErrorResult,
-  ]),
+  result: OTAUResult,
 });
 
 export type OTAUDeleteResult = z.infer<typeof OTAUDeleteResult>;
 export type OTAUWriteResult = z.infer<typeof OTAUWriteResult>;
 export type OTAUErrorResult = z.infer<typeof OTAUErrorResult>;
+export type OTAUResult = z.infer<typeof OTAUResult>;
 export type OTAUReport = z.infer<typeof OTAUReport>;

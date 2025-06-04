@@ -426,16 +426,15 @@ export class UMQTTCoreController implements EndNodeController {
       }`,
     );
 
-    //TODO: change this to zod validation
     if (result.error) {
-      //TODO: assert only one of these is present
       this.otauWritePromise?.reject(new Error(result.message));
       this.otauDeletePromise?.reject(new Error(result.message));
-    } else if ("written" in result) {
-      this.otauWritePromise!.resolve(result.written);
-    } else if ("deleted" in result) {
-      this.otauDeletePromise!.resolve(result.deleted);
+    } else if (result.written) {
+      this.otauWritePromise?.resolve(result.written);
+    } else if (result.deleted) {
+      this.otauDeletePromise?.resolve(result.deleted);
     } else {
+      // Should never happen if Zod schema is correct
       this.logger?.error(
         "❌ Unknown OTAU report result format:",
         JSON.stringify(result),
@@ -490,8 +489,10 @@ export class UMQTTCoreController implements EndNodeController {
       }).catch((err) => {
         this.adaptationInProgress = false;
 
-        this.logger?.critical(err);
-        this.logger?.critical("❗️End node may be in an inconsistent state.");
+        this.logger?.error(
+          { Error: err },
+          "❗️Adaptation Failed. End node may be in an inconsistent state.",
+        );
       });
   }
 
