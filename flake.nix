@@ -22,6 +22,7 @@
           nativeBuildInputs = with pkgs; [
             nodePackages_latest.prettier # code formatter
             deno # dev tools and runtime
+            mosquitto # MQTT broker
           ];
         };
       }
