@@ -213,7 +213,7 @@ export class MqttEdgeConnector extends EdgeConnector {
     id: string,
     reply: RegistrationReply,
   ): Promise<void> {
-    const topic = `citylink/${id}/registration/reply`;
+    const topic = `citylink/${id}/registration/ack`;
     const message = JSON.stringify(reply);
 
     this.logger?.debug(
