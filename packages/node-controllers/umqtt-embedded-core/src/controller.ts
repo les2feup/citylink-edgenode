@@ -131,7 +131,7 @@ export class UMQTTCoreController implements EndNodeController {
     this.topicPrefix = `citylink/${this.node.id}/`;
 
     //TODO: tie this to environment variable OR debug package
-    this.logger = createLogger("core", "UMQTTCoreController", {
+    this.logger = createLogger("controller", "UMQTTCore", {
       node: this.node.id,
     });
 
@@ -188,7 +188,10 @@ export class UMQTTCoreController implements EndNodeController {
     this.client.on("message", (topic, message) => {
       // Filter out messages that don't start with our topic prefix
       if (!topic.startsWith(this.topicPrefix)) {
-        this.logger?.debug(`Ignoring message on unrelated topic: ${topic}`);
+        this.logger?.warn(
+          { topic },
+          "Ignoring message on unrelated topic",
+        );
         return;
       }
 
@@ -204,13 +207,21 @@ export class UMQTTCoreController implements EndNodeController {
       // Ignore all messages that relate to the platform namespace
       if (affordanceNamespace === "platform") {
         this.logger?.debug(
-          `Ignoring platform message for ${affordanceType} "${affordanceName}"`,
+          { topic, affordanceType, affordanceName },
+          "Ignoring platform message",
         );
         return;
       }
 
       this.logger?.info(
-        `📩 --${affordanceType}-- ${affordanceNamespace}/${affordanceName}: ${message.toString()}`,
+        {
+          topic,
+          type: affordanceType,
+          namespace: affordanceNamespace,
+          affordance: affordanceName,
+          message: message.toString(),
+        },
+        "📩 New message received",
       );
 
       if (affordanceNamespace === "core") {
@@ -228,7 +239,10 @@ export class UMQTTCoreController implements EndNodeController {
     return new Promise((resolve, reject) => {
       this.client!.end(true, (err) => {
         if (err) {
-          this.logger?.error(`❌ Failed to disconnect MQTT client: ${err}`);
+          this.logger?.error(
+            { error: err },
+            "❌ Failed to disconnect MQTT client",
+          );
           reject(err);
         } else {
           this.logger?.info("✅ MQTT client disconnected successfully.");
@@ -243,7 +257,7 @@ export class UMQTTCoreController implements EndNodeController {
       this.adaptationInitPromise || this.adaptationFinishPromise
     ) {
       this.logger?.warn(
-        `⚠️ Adaptation already in progress. Cannot start a new one.`,
+        "⚠️ Adaptation already in progress. Cannot start a new one.",
       );
       return Promise.reject(new Error("In progress"));
     }
@@ -272,7 +286,8 @@ export class UMQTTCoreController implements EndNodeController {
       this.adaptationInitPromise = { resolve, reject };
       this.invokeAction("citylink:embeddedCore_OTAUInit").catch((err) => {
         this.logger?.error(
-          `❌ Failed to invoke OTAU init action: ${err.message}`,
+          { error: err },
+          "❌ Failed to invoke OTAU init action",
         );
         this.adaptationInitPromise?.reject(err);
         this.adaptationInitPromise = undefined;
@@ -283,7 +298,8 @@ export class UMQTTCoreController implements EndNodeController {
   private finishAdaptation(): Promise<void> {
     if (this.coreStatus !== "OTAU") {
       this.logger?.error(
-        `❌ Cannot finish OTAU procedure in current status: ${this.coreStatus}`,
+        { coreStatus: this.coreStatus },
+        "❌ Cannot finish OTAU procedure in current status",
       );
       return Promise.reject(new Error("invalid core status"));
     }
@@ -295,8 +311,9 @@ export class UMQTTCoreController implements EndNodeController {
       );
       this.adaptationFinishPromise = { resolve, reject };
       this.invokeAction("citylink:embeddedCore_OTAUFinish").catch((err) => {
-        this.logger?.critical(
-          `❌ Failed to invoke OTAU finish action: ${err.message}`,
+        this.logger?.error(
+          { error: err },
+          "❌ Failed to invoke OTAU finish action",
         );
         this.adaptationFinishPromise?.reject(err);
         this.adaptationFinishPromise = undefined;
@@ -323,7 +340,8 @@ export class UMQTTCoreController implements EndNodeController {
         break;
       default:
         this.logger?.warn(
-          `⚠️ Unknown core affordance type "${affordanceType}" for "${affordanceName}"`,
+          { affordanceType, affordanceName },
+          "⚠️ Unknown core affordance received",
         );
     }
   }
@@ -339,9 +357,8 @@ export class UMQTTCoreController implements EndNodeController {
         this.logger?.info(`Core status update: ${JSON.stringify(value)}`);
         if (!CoreStatusValues.includes(value as CoreStatus)) {
           this.logger?.error(
-            `❌ Invalid core status value: ${value}. Expected one of ${
-              CoreStatusValues.join(", ")
-            }`,
+            { value, expected: CoreStatusValues },
+            "❌ Invalid core status value",
           );
           return;
         }
@@ -394,12 +411,19 @@ export class UMQTTCoreController implements EndNodeController {
 
     switch (affordanceName) {
       case "otau/report":
-        this.logger?.info(`Received OTAU write event: ${value}`);
+        this.logger?.info(
+          { affordanceName, value },
+          "Received OTAU report event",
+        );
         this.handleOtauReport(value);
         break;
       default:
         this.logger?.warn(
-          `⚠️ Unknown core event "${affordanceName}" with value "${value}"`,
+          {
+            affordanceName,
+            value,
+          },
+          "⚠️ Unknown core event",
         );
     }
   }
@@ -409,9 +433,8 @@ export class UMQTTCoreController implements EndNodeController {
     const parsed = OTAUReport.safeParse(json);
     if (!parsed.success) {
       this.logger?.error(
-        `❌ Invalid OTAU report format: ${
-          JSON.stringify(parsed.error.format(), null, 2)
-        }`,
+        { error: parsed.error.format() },
+        "❌ Invalid OTAU report",
       );
       return;
     }
@@ -421,9 +444,11 @@ export class UMQTTCoreController implements EndNodeController {
     const base = Date.UTC(epoch_year, 0, 1); // January 1st of the year
     const date = new Date(base + seconds * 1000);
     this.logger?.info(
-      `📅 OTAU report received at ${date.toISOString()}: ${
-        JSON.stringify(result, null, 2)
-      }`,
+      {
+        timestamp: date.toISOString(),
+        result: JSON.stringify(result, null, 2),
+      },
+      "📅 OTAU report received",
     );
 
     if (result.error) {
@@ -435,10 +460,10 @@ export class UMQTTCoreController implements EndNodeController {
       this.otauDeletePromise?.resolve(result.deleted);
     } else {
       // Should never happen if Zod schema is correct
-      this.logger?.error(
-        "❌ Unknown OTAU report result format:",
-        JSON.stringify(result),
-      );
+      this.logger?.error({
+        timestamp: date.toISOString(),
+        result: JSON.stringify(result, null, 2),
+      }, "❌ Unknown OTAU report result format");
     }
   }
 
@@ -452,6 +477,7 @@ export class UMQTTCoreController implements EndNodeController {
     }
 
     this.logger?.info(
+      { source: source.map((file) => file.path) },
       `📦 Downloaded ${source.length} files for adaptation.`,
     );
 
@@ -461,7 +487,8 @@ export class UMQTTCoreController implements EndNodeController {
   private adaptEndNode() {
     if (this.coreStatus !== "OTAU") {
       this.logger?.warn(
-        `❌ Cannot start adaptation procedure in current status: ${this.coreStatus}`,
+        { coreStatus: this.coreStatus },
+        `❌ Cannot start adaptation procedure in current status`,
       );
       return;
     }
@@ -530,32 +557,40 @@ export class UMQTTCoreController implements EndNodeController {
     }
 
     this.logger?.info(
+      { toDelete: Array.from(toDelete) },
       `📤 Deleting ${toDelete.size} file(s) from previous adaptation...`,
     );
 
     for (const path of toDelete) {
       try {
-        this.logger?.debug(`📤 Deleting file ${path} from end node...`);
         const deletedPaths = await this.otauDelete(path, true);
-        this.logger?.debug(`✅ File(s) deleted: ${deletedPaths.join(", ")}`);
+        this.logger?.debug(
+          { deletedPaths },
+          "✅ File deleted successfully",
+        );
       } catch (err) {
-        this.logger?.error(`❌ Failed to delete file ${path}:`, err);
+        this.logger?.error(
+          { path, error: err },
+          "❌ Deletion Failed",
+        );
         throw new Error("❗️Adaptation failed due to deletion error.");
       }
     }
   }
 
   private async adaptationWriteFiles(source: SourceFile[]): Promise<void> {
-    this.logger?.info("📥 Writing files to end node...");
+    this.logger?.info(
+      { source: source.map((file) => file.path) },
+      "📥 Writting files to end node...",
+    );
     for (const file of source) {
       try {
-        this.logger?.debug(`📥 Writing file ${file.path}`);
-
         const writtenPath = await this.otauWrite(file);
 
         if (writtenPath !== file.path) {
           this.logger?.warn(
-            `⚠️ Written path "${writtenPath}" does not match expected "${file.path}".`,
+            { writtenPath, expected: file.path },
+            `⚠️ Written path does not match expected.`,
           );
           //TODO: handle retry or rollback logic here
           break; // Stop processing if mismatch
@@ -568,7 +603,10 @@ export class UMQTTCoreController implements EndNodeController {
           this.adaptationReplaceSet.add(file.path);
         }
       } catch (err) {
-        this.logger?.error(`❌ Failed to write file ${file.path}:`, err);
+        this.logger?.error(
+          { file: file.path, Error: err },
+          "❌ Failed to write file.",
+        );
         throw new Error("❗️Adaptation failed due to write error.");
         //TODO: handle retry or rollback logic here
       }
@@ -587,7 +625,10 @@ export class UMQTTCoreController implements EndNodeController {
     };
 
     return new Promise<string>((resolve, reject) => {
-      this.logger?.info(`📤 Writing file ${file.path} to end node...`);
+      this.logger?.info(
+        { file: file.path, hash },
+        "📤 Writing file to end node...",
+      );
       this.otauWritePromise = { resolve, reject };
 
       this.invokeAction("citylink:embeddedCore_OTAUWrite", writeInput)
@@ -611,7 +652,8 @@ export class UMQTTCoreController implements EndNodeController {
       UMQTTCoreController.coreDirs.some((dir) => path.startsWith(dir))
     ) {
       this.logger?.error(
-        `❌ Cannot delete core directory "${path}" recursively.`,
+        { path, recursive },
+        "❌ Cannot delete core directory recursively.",
       );
       return Promise.reject(
         new Error(`Cannot delete core directory "${path}" recursively.`),
@@ -621,12 +663,18 @@ export class UMQTTCoreController implements EndNodeController {
     return new Promise<string[]>((resolve, reject) => {
       const delType = recursive ? "directory" : "file";
 
-      this.logger?.info(`📤 Deleting ${delType} "${path}" from end node...`);
+      this.logger?.info(
+        { path, recursive },
+        "📤 Deleting from end node.",
+      );
       this.otauDeletePromise = { resolve, reject };
 
       this.invokeAction("citylink:embeddedCore_OTAUDelete", deleteInput).catch(
         (err) => {
-          this.logger?.error(`❌ Failed to delete ${delType} "${path}":`, err);
+          this.logger?.error(
+            { path, entryType: delType, error: err },
+            "❌ Deletion failed",
+          );
           this.otauDeletePromise?.reject(err);
           this.otauDeletePromise = undefined;
         },
@@ -643,7 +691,8 @@ export class UMQTTCoreController implements EndNodeController {
 
     return new Promise((resolve, reject) => {
       this.logger?.debug(
-        `📤 Publishing value: ${JSON.stringify(value)} to topic: ${opts.topic}`,
+        { topic: opts.topic, value },
+        `📤 Publishing`,
       );
 
       this.client!.publish(opts.topic, JSON.stringify(value), {
@@ -710,11 +759,15 @@ export class UMQTTCoreController implements EndNodeController {
       if (opts) {
         this.publish(val, opts).catch((err) => {
           this.logger?.error(
-            `❌ Failed to publish default property "${name}": ${err.message}`,
+            { affordance: name, error: err },
+            "❌ Failed to publish default value",
           );
         });
       } else {
-        this.logger?.warn(`⚠️ No MQTT config for property "${name}"`);
+        this.logger?.warn(
+          { property: name },
+          "⚠️ No MQTT config for property",
+        );
       }
     }
   }
@@ -751,7 +804,10 @@ export class UMQTTCoreController implements EndNodeController {
 
     for (const [name, obj] of entries) {
       if (ignore_prefix && name.startsWith(ignore_prefix)) {
-        this.logger?.debug(`Skipping ${type} "${name}" due to ignore prefix`);
+        this.logger?.debug(
+          { affordance: name, type },
+          "Skipping subcription due to ignore prefix",
+        );
         continue;
       }
 
@@ -767,9 +823,15 @@ export class UMQTTCoreController implements EndNodeController {
   private subscribeToTopic(name: string, topic: string, qos: 0 | 1 | 2): void {
     this.client?.subscribe(topic, { qos }, (err) => {
       if (err) {
-        this.logger?.error(`❌ Subscription failed for "${name}":`, err);
+        this.logger?.error(
+          { affordance: name, topic, error: err },
+          "❌ Subscription failed",
+        );
       } else {
-        this.logger?.info(`📡 Subscribed to "${name}" on topic "${topic}"`);
+        this.logger?.info(
+          { affordance: name, topic },
+          `📡 New subscription`,
+        );
       }
     });
   }
@@ -801,17 +863,24 @@ export class UMQTTCoreController implements EndNodeController {
     //TODO: validate input against action.input schema
     const actionInput = input ?? "";
     this.logger?.debug(
-      `📤 Invoking action "${name}" with input: ${actionInput}`,
+      { action: name, input: actionInput },
+      "📤 Invoking action",
     );
 
     return new Promise((resolve, reject) => {
       this.publish(actionInput, opts)
         .then(() => {
-          this.logger?.info(`✅ Action "${name}" invoked successfully.`);
+          this.logger?.info(
+            { action: name },
+            `✅ Action invoked successfully.`,
+          );
           resolve();
         })
         .catch((err) => {
-          this.logger?.error(`❌ Failed to invoke action "${name}":`, err);
+          this.logger?.error(
+            { action: name, error: err },
+            "❌ Action invocation failed",
+          );
           reject(err);
         });
     });
