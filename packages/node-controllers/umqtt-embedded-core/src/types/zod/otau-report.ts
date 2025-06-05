@@ -17,7 +17,7 @@ export const OTAUErrorResult = z.object({
   message: z.string(),
 });
 
-export const OTAUResult = z.discriminatedUnion("error", [
+export const OTAUResult = z.union([
   OTAUDeleteResult,
   OTAUWriteResult,
   OTAUErrorResult,
