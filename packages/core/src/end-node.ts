@@ -1,10 +1,8 @@
-import { fetchAppManifest } from "./services/fetch-app-manifest.ts";
-import { fetchThingModel } from "./services/fetch-thing-model.ts";
 import { produceTD } from "./services/produce-thing-description.ts";
 import { v4 } from "jsr:@std/uuid";
 import { createLogger } from "common/log";
 
-import { AppManifest } from "./types/zod/app-manifest.ts";
+import { Manifest } from "./types/zod/manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type {
   CityLinkPlaceholderMap,
@@ -19,13 +17,14 @@ import {
 } from "./services/fetch-app-source.ts";
 import { ThingModelHelpers } from "@eclipse-thingweb/thing-model";
 import { getTmTools } from "./services/thing-model-helpers.ts";
+import { fetchManifest } from "./services/fetch-manifest.ts";
 
 const logger = createLogger("core", "EndNode");
 
 export class EndNode {
   constructor(
     private readonly uuid: string,
-    private readonly manifest: AppManifest,
+    private readonly nodeManifest: Manifest,
     private readonly td: ThingDescription,
     private readonly compatible: ControllerCompatibleTM,
   ) {
@@ -35,17 +34,21 @@ export class EndNode {
   }
 
   static async from<tmap extends CityLinkPlaceholderMap>(
-    arg: AppManifest | URL,
+    arg: Manifest | URL,
     opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode> {
-    let manifest: AppManifest;
+    let manifest: Manifest;
 
     if (arg instanceof URL) {
-      logger.info(`📥 Fetching app manifest from ${arg.toString()}`);
-      manifest = await fetchAppManifest(arg);
+      logger.info(
+        { url: arg.toString() },
+        "📥 Fetching app manifest",
+      );
+      manifest = await fetchManifest(arg);
     } else {
-      logger.info(`📥 Using provided app manifest`);
-      const parsed = AppManifest.safeParse(arg);
+      logger.info("📥 Using provided app manifest");
+      logger.debug({ manifest: arg });
+      const parsed = Manifest.safeParse(arg);
       if (!parsed.success) {
         throw new Error("Invalid AppManifest: " + parsed.error.message);
       }
@@ -56,10 +59,14 @@ export class EndNode {
     // Fetch the ThingModel from the manifest
     try {
       logger.info(
-        `📦 Creating EndNode from Thing Model: ${manifest.wot.tm.href}`,
+        `📦 Creating EndNode from Thing Model: ${manifest.wot.tm}`,
       );
-      const tm = await fetchThingModel(manifest.wot.tm);
+      const tm = await getTmTools().fetchModel(manifest.wot.tm);
       const compatible = await resolveControllerCompatible(tm);
+      opts.placeholderMap = {
+        ...opts.placeholderMap,
+        ...manifest.wot.placeholderExtra, // Merge any extra placeholders from the manifest
+      };
       const td = await produceTD(tm, opts);
 
       const uuid = td.id!.split("urn:uuid:")[1];
@@ -70,7 +77,7 @@ export class EndNode {
   }
 
   async fetchSource(): Promise<SourceFile[]> {
-    const fetchResults = await fetchAppSource(this.manifest.download);
+    const fetchResults = await fetchAppSource(this.nodeManifest);
     const errors = filterSourceFetchErrors(fetchResults);
     if (errors.length > 0) {
       throw new Error(
@@ -91,8 +98,8 @@ export class EndNode {
     return this.td;
   }
 
-  get appManifest(): Readonly<AppManifest> {
-    return this.manifest;
+  get manifest(): Readonly<Manifest> {
+    return this.nodeManifest;
   }
 
   get controllerCompatible(): Readonly<ControllerCompatibleTM> {

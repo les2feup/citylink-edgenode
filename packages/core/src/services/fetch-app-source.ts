@@ -7,22 +7,35 @@ import type {
 } from "../types/app-source.ts";
 import type {
   AppContentTypes,
-  AppManifest,
+  Manifest,
+  ManifestDownloadItem,
 } from "../types/zod/app-manifest.ts";
 
-type DownloadMetadata = AppManifest["download"];
-type DownloadMetadataItem = DownloadMetadata[number];
-
 export async function fetchAppSource(
-  download: DownloadMetadata,
+  manifest: Manifest,
 ): Promise<AppFetchResult[]> {
-  const fetchPromises = download.map((mdata) => fetchSingleFile(mdata));
-  const results = await Promise.all(fetchPromises);
-  return results;
+  const fetchPromises = (() => {
+    switch (manifest.type) {
+      case "App":
+      case "EmbeddedCore":
+        return manifest.source.map((item) => fetchSingleFile(item));
+      case "Full": {
+        const coreFetches = manifest.source.core.map((item) =>
+          fetchSingleFile(item)
+        );
+        const appFetches = manifest.source.app.map((item) =>
+          fetchSingleFile(item)
+        );
+        return [...coreFetches, ...appFetches];
+      }
+    }
+  })();
+
+  return await Promise.all(fetchPromises);
 }
 
 async function fetchSingleFile(
-  dl: DownloadMetadataItem,
+  dl: ManifestDownloadItem,
 ): Promise<SourceFile | AppFetchError> {
   // before fetching, try the file cache
   const cache = getAppContentCache();
@@ -104,17 +117,3 @@ export function filterSourceFetchSuccess(
     "path" in result && "url" in result && "content" in result
   );
 }
-
-// export function encodeContentBase64(content: AppContentTypes): string {
-//   switch (typeof content) {
-//     case "string":
-//       return encodeBase64(content);
-//     case "object": {
-//       if (content instanceof Uint8Array) {
-//         return encodeBase64(content);
-//       }
-//       return encodeBase64(JSON.stringify(content));
-//     }
-//   }
-// }
-

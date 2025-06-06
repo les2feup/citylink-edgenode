@@ -8,7 +8,13 @@ export { EdgeConnector } from "./src/edge-connector.ts";
 export type {
   AppContentTypes,
   AppManifest,
-} from "./src/types/zod/app-manifest.ts";
+  CoreManifest,
+  FullManifest,
+  Manifest,
+  ManifestDownloadArray,
+  ManifestDownloadItem,
+  ManifestWoTMetadata,
+} from "./src/types/zod/manifest.ts";
 
 export type { SourceFile } from "./src/types/app-source.ts";
 
@@ -18,17 +24,9 @@ export type {
   EndNodeControllerFactory,
 } from "./src/types/end-node-controller.ts";
 
-import { fetchThingModel } from "./src/services/fetch-thing-model.ts";
-import { fetchAppManifest } from "./src/services/fetch-app-manifest.ts";
-export const fetchers = {
-  fetchThingModel,
-  fetchAppManifest,
-};
-
 import { produceTD } from "./src/services/produce-thing-description.ts";
-export const utils = { produceTD };
-
-export type { TmFetchMetadata } from "./src/services/fetch-thing-model.ts";
+import { fetchManifest } from "./src/services/fetch-manifest.ts";
+export const utils = { produceTD, fetchManifest };
 
 export type {
   CityLinkPlaceholderMap,

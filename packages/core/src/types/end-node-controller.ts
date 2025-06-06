@@ -1,5 +1,5 @@
 import type { EndNode } from "../end-node.ts";
-import type { AppManifest } from "../types/zod/app-manifest.ts";
+import type { Manifest } from "../types/zod/app-manifest.ts";
 
 export type ControllerCompatibleTM = {
   title: string;
@@ -10,7 +10,7 @@ export interface EndNodeController {
   stop(): void | Promise<void>;
   start(): void | Promise<void>;
 
-  startAdaptation(manifest: AppManifest | URL): Promise<void>;
+  startAdaptation(manifest: Manifest | URL): Promise<void>;
 
   get endNode(): Readonly<EndNode>;
   get compatible(): Readonly<ControllerCompatibleTM>;

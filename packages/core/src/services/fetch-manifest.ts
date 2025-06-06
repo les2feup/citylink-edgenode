@@ -1,9 +1,9 @@
-import { AppManifest } from "../types/zod/app-manifest.ts";
+import { Manifest } from "../types/zod/manifest.ts";
 import { getAppManifestCache } from "./cache-registry.ts";
 
-export async function fetchAppManifest(
+export async function fetchManifest(
   url: URL,
-): Promise<AppManifest> {
+): Promise<Manifest> {
   const cache = getAppManifestCache();
 
   try {
@@ -17,7 +17,7 @@ export async function fetchAppManifest(
       throw new Error(`Failed to fetch app manifest: ${response.statusText}`);
     }
     const json = await response.json();
-    const parsed = AppManifest.safeParse(json);
+    const parsed = Manifest.safeParse(json);
     if (!parsed.success) {
       throw new Error(
         `Invalid app manifest: ${

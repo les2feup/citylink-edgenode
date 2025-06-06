@@ -4,6 +4,7 @@ import type {
   ControllerCompatibleTM,
   EndNodeController,
   EndNodeControllerFactory,
+  Manifest,
   SourceFile,
   ThingDescription,
   ThingDescriptionOpts,
@@ -252,7 +253,8 @@ export class UMQTTCoreController implements EndNodeController {
     });
   }
 
-  async startAdaptation(manifest: AppManifest | URL): Promise<void> {
+  //TODO: handle adaptation more granularly based on the different Manifest types
+  async startAdaptation(manifest: Manifest | URL): Promise<void> {
     if (
       this.adaptationInitPromise || this.adaptationFinishPromise
     ) {
@@ -262,10 +264,11 @@ export class UMQTTCoreController implements EndNodeController {
       return Promise.reject(new Error("In progress"));
     }
 
+    //NOTE: merging "placeholderExtra" field from the manifest
+    //into the placeholderMap is handled in EndNode.from()
     const placeholderMap = endNodeMaps.mqtt.create(
       this.brokerURL.toString(),
       this.node.id,
-      //TODO: add extra field to app manifest
     );
 
     const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {

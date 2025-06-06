@@ -1,5 +1,5 @@
 import { createLogger } from "common/log";
-import type { AppManifest } from "./types/zod/app-manifest.ts";
+import type { Manifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type { EndNode } from "./end-node.ts";
 import type {
@@ -82,7 +82,7 @@ export abstract class EdgeConnector {
 
   startNodeAdaptation(
     uuid: string,
-    newManifest: AppManifest | URL,
+    newManifest: Manifest | URL,
   ): Promise<void> {
     const controller = this.controllers.get(uuid);
     if (!controller) {

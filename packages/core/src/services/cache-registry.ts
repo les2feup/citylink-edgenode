@@ -6,7 +6,7 @@ import type {
 import type { ThingModel } from "npm:wot-thing-model-types";
 import type {
   AppContentTypes,
-  AppManifest,
+  Manifest,
 } from "../types/zod/app-manifest.ts";
 import { InMemoryCache } from "../utils/in-memory-cache.ts";
 
@@ -14,7 +14,7 @@ import { InMemoryCache } from "../utils/in-memory-cache.ts";
 
 let appManifestCache: AppManifestCache = new InMemoryCache<
   string,
-  AppManifest
+  Manifest
 >();
 
 export function getAppManifestCache(): Readonly<AppManifestCache> {
