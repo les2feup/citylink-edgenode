@@ -37,12 +37,14 @@ export class ThingDirectory {
    * @param baseUrl The base URL for the server (defaults to "http://localhost:8080").
    * @returns A Promise that resolves when the server starts.
    */
-  start(baseUrl: string = "http://localhost:8080"): void {
-    this.logger.info(`Starting ThingDirectory on ${baseUrl}`);
+  start(hostname: string = "localhost", port: number = 8080): void {
+    this.logger.info(
+      { ip: hostname, port },
+      "Starting ThingDirectory",
+    );
 
     // Deno.serve creates an HTTP server.
-    // It listens on the specified port (8080 in this case).
-    Deno.serve({ port: 8080 }, (req: Request): Response => {
+    Deno.serve({ hostname, port }, (req: Request): Response => {
       try {
         const url = new URL(req.url);
         const pathname = url.pathname;
@@ -137,6 +139,11 @@ export class ThingDirectory {
     const limit = parseInt(uriVars.get("limit") || `${allThings.length}`);
     const format = uriVars.get("format") || "array"; // Default to 'array'
 
+    this.logger.debug(
+      { offset, limit, format },
+      "/things Pagination parameters",
+    );
+
     if (isNaN(offset) || offset < 0 || isNaN(limit) || limit < 0) {
       return this.errorResponse(
         "Invalid 'offset' or 'limit' query parameter.",
@@ -161,7 +168,9 @@ export class ThingDirectory {
         "members": paginatedThings,
         // Add pagination links if desired, e.g., "next", "prev"
         "@id": `/things?offset=${startIndex}&limit=${limit},&format=collection`,
-        "@next": `/things?offset=${endIndex}&limit=${limit}&format=collection`,
+        "@next": endIndex < allThings.length
+          ? `/things?offset=${endIndex}&limit=${limit}&format=collection`
+          : null,
         "@prev": startIndex > 0
           ? `/things?offset=${
             Math.max(0, startIndex - limit)
@@ -296,4 +305,3 @@ export class ThingDirectory {
     });
   }
 }
-
