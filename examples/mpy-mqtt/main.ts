@@ -42,4 +42,4 @@ await mqttConnector.startRegistrationListener();
 
 const thingDirectory = new ThingDirectory();
 thingDirectory.addEdgeConnector(mqttConnector);
-await thingDirectory.start();
+thingDirectory.start();
