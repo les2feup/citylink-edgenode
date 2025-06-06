@@ -1,3 +1,4 @@
+import { ThingDirectory } from "@citylink-edgc/thing-directory";
 import { MqttEdgeConnector } from "@citylink-edgc/connector-mqtt";
 import {
   UMQTTCoreControllerFactory,
@@ -32,9 +33,13 @@ const edgeConTD: cl.ThingDescription = await cl.utils.produceTD(
   tdOpts,
 );
 
-const edgeConnector = new MqttEdgeConnector(edgeConTD);
-edgeConnector.registerControllerFactory(
+const mqttConnector = new MqttEdgeConnector(edgeConTD);
+mqttConnector.registerControllerFactory(
   new UMQTTCoreControllerFactory(controllerTM),
 );
 
-await edgeConnector.startRegistrationListener();
+await mqttConnector.startRegistrationListener();
+
+const thingDirectory = new ThingDirectory();
+thingDirectory.addEdgeConnector(mqttConnector);
+await thingDirectory.start();
