@@ -8,8 +8,6 @@
   "license": "GPL-3.0",
   "exports": "./mod.ts",
   "imports": {
-    "@node-wot/binding-http": "npm:@node-wot/binding-http@^0.9.1",
-    "@node-wot/core": "npm:@node-wot/core@^0.9.1",
     "common/log": "../common/logging/log.ts",
     "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
     "@citylink-edgc/core": "../core/mod.ts"

@@ -8,8 +8,6 @@
     "@citylink-edgc/controller-umqtt-core": "../../packages/node-controllers/umqtt-embedded-core/mod.ts",
     "@citylink-edgc/thing-directory": "../../packages/thing-directory/mod.ts",
     "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
-    "@node-wot/binding-http": "npm:@node-wot/binding-http@^0.9.1",
-    "@node-wot/core": "npm:@node-wot/core@^0.9.1",
     "@std/encoding": "jsr:@std/encoding@^1.0.10",
     "common/log": "../../packages/common/logging/log.ts",
     "common/end-node-maps": "../../packages/common/end-node-maps/mod.ts",
