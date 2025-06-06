@@ -26,6 +26,10 @@ export abstract class EdgeConnector {
   abstract startRegistrationListener(): Promise<void>;
   abstract stopRegistrationListener(): Promise<void>;
 
+  get id(): Readonly<string> {
+    return this.uuid;
+  }
+
   async stopNodeController(
     uuid: string,
   ): Promise<void> {
