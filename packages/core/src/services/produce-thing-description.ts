@@ -1,4 +1,4 @@
-import type { ThingModel } from "npm:wot-thing-model-types";
+import type { ThingModel } from "../types/thing-models.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type {
   CityLinkPlaceholderMap,

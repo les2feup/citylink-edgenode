@@ -1,4 +1,4 @@
-import type { ThingModel } from "npm:wot-thing-model-types";
+import type { ThingModel } from "./thing-models.ts";
 import type { AppContentTypes, Manifest } from "./zod/manifest.ts";
 
 export interface Cache<K, V> {

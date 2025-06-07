@@ -8,7 +8,7 @@ import type {
   CityLinkPlaceholderMap,
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
-import type { ThingModel } from "../mod.ts";
+import type { ThingModel } from "./types/thing-models.ts";
 import type { ControllerCompatibleTM } from "./types/end-node-controller.ts";
 import type { SourceFile } from "./types/app-source.ts";
 import {

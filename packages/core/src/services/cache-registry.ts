@@ -3,7 +3,7 @@ import type {
   AppManifestCache,
   ThingModelCache,
 } from "../types/cache.ts";
-import type { ThingModel } from "npm:wot-thing-model-types";
+import type { ThingModel } from "../types/thing-models.ts";
 import type { AppContentTypes, Manifest } from "../types/zod/manifest.ts";
 import { InMemoryCache } from "../utils/in-memory-cache.ts";
 

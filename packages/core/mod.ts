@@ -29,7 +29,7 @@ export type {
   ThingDescriptionOpts,
 } from "./src/types/thing-description-opts.ts";
 
-export type { ThingModel } from "npm:wot-thing-model-types";
+export type { ThingModel } from "./src/types/thing-models.ts";
 export type { ThingDescription } from "npm:wot-thing-description-types";
 
 // Cache utilities
