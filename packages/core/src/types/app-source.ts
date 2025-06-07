@@ -1,4 +1,4 @@
-import type { AppContentTypes } from "./zod/app-manifest.ts";
+import type { AppContentTypes } from "./zod/manifest.ts";
 
 export type SourceFile = {
   path: string;

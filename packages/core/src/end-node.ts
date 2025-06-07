@@ -34,38 +34,62 @@ export class EndNode {
   }
 
   static async from<tmap extends CityLinkPlaceholderMap>(
-    arg: Manifest | URL,
+    arg: ThingModel | URL,
     opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode> {
-    let manifest: Manifest;
+    let tm: ThingModel;
 
     if (arg instanceof URL) {
       logger.info(
         { url: arg.toString() },
-        "📥 Fetching app manifest",
+        "📥 Fetching ThingModel",
       );
-      manifest = await fetchManifest(arg);
+      tm = await getTmTools().fetchModel(arg.toString());
     } else {
-      logger.info("📥 Using provided app manifest");
-      logger.debug({ manifest: arg });
-      const parsed = Manifest.safeParse(arg);
-      if (!parsed.success) {
-        throw new Error("Invalid AppManifest: " + parsed.error.message);
-      }
-
-      manifest = parsed.data;
+      logger.info("📥 Using provided ThingModel");
+      logger.debug({ ThingModel: arg });
+      tm = arg;
+      //TODO: Validate the ThingModel here
     }
 
     // Fetch the ThingModel from the manifest
     try {
       logger.info(
-        `📦 Creating EndNode from Thing Model: ${manifest.wot.tm}`,
+        { title: tm.title },
+        `📦 Creating EndNode from Thing Model)`,
       );
-      const tm = await getTmTools().fetchModel(manifest.wot.tm);
+
+      //TODO: Refactor this logic into a type validation function
+      let manifest: Manifest;
+      if (tm["citylink:manifest"]) {
+        logger.info(
+          "📦 Parsing manifest from Thing Model",
+        );
+        logger.debug({ manifest: tm["citylink:manifest"] });
+
+        manifest = Manifest.parse(tm["citylink:manifest"]);
+      } else if (tm.links?.some((link) => link.rel === "citylink:manifest")) {
+        logger.info(
+          "📦 Fetching manifest from Thing Model links",
+        );
+        const manifestUrl = tm.links.find(
+          (link) => link.rel === "citylink:manifest",
+        )?.href;
+        if (!manifestUrl || !URL.canParse(manifestUrl)) {
+          throw new Error("citylink:manifest link with invalid href");
+        }
+        logger.info({ manifestUrl }, "📦 Fetching manifest from URL");
+        manifest = await fetchManifest(URL.parse(manifestUrl)!);
+      } else {
+        throw new Error(
+          "Thing Model does not contain a citylink:manifest field or citylink:manifest link",
+        );
+      }
+
       const compatible = await resolveControllerCompatible(tm);
       opts.placeholderMap = {
         ...opts.placeholderMap,
-        ...manifest.wot.placeholderExtra, // Merge any extra placeholders from the manifest
+        ...manifest.placeholder, // Merge any extra placeholders from the manifest
       };
       const td = await produceTD(tm, opts);
 
@@ -77,7 +101,7 @@ export class EndNode {
   }
 
   async fetchSource(): Promise<SourceFile[]> {
-    const fetchResults = await fetchAppSource(this.nodeManifest);
+    const fetchResults = await fetchAppSource(this.nodeManifest.source);
     const errors = filterSourceFetchErrors(fetchResults);
     if (errors.length > 0) {
       throw new Error(

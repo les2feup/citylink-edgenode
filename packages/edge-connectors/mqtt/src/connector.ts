@@ -234,15 +234,15 @@ export class MqttEdgeConnector extends EdgeConnector {
   }
 
   private async createNode(message: RegistrationSchema): Promise<EndNode> {
-    const manifestURL = URL.parse(message.manifest);
-    if (!manifestURL) {
+    const tmURL = URL.parse(message.tm);
+    if (!tmURL) {
       throw new Error("Invalid manifest URL");
     }
 
     const placeholderMap = endNodeMaps.mqtt.create(
       this.brokerUrl.toString(),
       crypto.randomUUID(),
-      message.templateMapExtra,
+      message.placeholder,
     );
     if (!placeholderMap) {
       throw new Error("Invalid template map in registration message");
@@ -258,7 +258,7 @@ export class MqttEdgeConnector extends EdgeConnector {
       },
     };
 
-    const node = await EndNode.from(manifestURL, opts);
+    const node = await EndNode.from(tmURL, opts);
     return node;
   }
 }

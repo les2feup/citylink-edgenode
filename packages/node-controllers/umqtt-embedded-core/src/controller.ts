@@ -1,10 +1,8 @@
 import type { Buffer } from "node:buffer";
 import type {
-  AppManifest,
   ControllerCompatibleTM,
   EndNodeController,
   EndNodeControllerFactory,
-  Manifest,
   SourceFile,
   ThingDescription,
   ThingDescriptionOpts,
@@ -254,7 +252,7 @@ export class UMQTTCoreController implements EndNodeController {
   }
 
   //TODO: handle adaptation more granularly based on the different Manifest types
-  async startAdaptation(manifest: Manifest | URL): Promise<void> {
+  async startAdaptation(tm: ThingModel | URL): Promise<void> {
     if (
       this.adaptationInitPromise || this.adaptationFinishPromise
     ) {
@@ -264,7 +262,7 @@ export class UMQTTCoreController implements EndNodeController {
       return Promise.reject(new Error("In progress"));
     }
 
-    //NOTE: merging "placeholderExtra" field from the manifest
+    //NOTE: merging "placeholder" field from the manifest
     //into the placeholderMap is handled in EndNode.from()
     const placeholderMap = endNodeMaps.mqtt.create(
       this.brokerURL.toString(),
@@ -282,7 +280,7 @@ export class UMQTTCoreController implements EndNodeController {
     };
 
     // this.prevNodeConfig = this.node; // TODO: save previous config to attempt rollback if needed
-    this.node = await EndNode.from(manifest, opts);
+    this.node = await EndNode.from(tm, opts);
 
     return new Promise((resolve, reject) => {
       this.logger?.info("🔄 Starting adaptation procedure...");

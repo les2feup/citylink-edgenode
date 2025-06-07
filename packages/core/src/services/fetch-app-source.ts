@@ -7,35 +7,19 @@ import type {
 } from "../types/app-source.ts";
 import type {
   AppContentTypes,
-  Manifest,
-  ManifestDownloadItem,
-} from "../types/zod/app-manifest.ts";
+  ManifestSourceItem,
+  ManifestSourceList,
+} from "../types/zod/manifest.ts";
 
 export async function fetchAppSource(
-  manifest: Manifest,
+  source: ManifestSourceList,
 ): Promise<AppFetchResult[]> {
-  const fetchPromises = (() => {
-    switch (manifest.type) {
-      case "App":
-      case "EmbeddedCore":
-        return manifest.source.map((item) => fetchSingleFile(item));
-      case "Full": {
-        const coreFetches = manifest.source.core.map((item) =>
-          fetchSingleFile(item)
-        );
-        const appFetches = manifest.source.app.map((item) =>
-          fetchSingleFile(item)
-        );
-        return [...coreFetches, ...appFetches];
-      }
-    }
-  })();
-
+  const fetchPromises = source.map((item) => fetchSingleFile(item));
   return await Promise.all(fetchPromises);
 }
 
 async function fetchSingleFile(
-  dl: ManifestDownloadItem,
+  dl: ManifestSourceItem,
 ): Promise<SourceFile | AppFetchError> {
   // before fetching, try the file cache
   const cache = getAppContentCache();
@@ -55,29 +39,28 @@ async function fetchSingleFile(
 
     let content: AppContentTypes;
     let hashable: Uint8Array;
-    switch (dl.contentType) {
-      case "json": {
-        content = await response.json();
-        hashable = new TextEncoder().encode(JSON.stringify(content));
-        break;
-      }
-      case "text": {
-        content = await response.text();
-        hashable = new TextEncoder().encode(content);
-        break;
-      }
-      case "binary": {
-        content = await response.bytes();
-        hashable = content as Uint8Array;
-        break;
-      }
 
-      default: {
-        return {
-          url: dl.url,
-          error: new Error(`Unsupported content type: ${dl.contentType}`),
-        };
-      }
+    // option 1: contentType is application/octet-stream - handle as binary
+    if (dl.contentType === "application/octet-stream") {
+      content = await response.bytes();
+      hashable = content as Uint8Array;
+    } // Option 2: contentType is text/plain or similar - handle as text
+    else if (dl.contentType.startsWith("text/")) {
+      content = await response.text();
+      hashable = new TextEncoder().encode(content);
+    } // Option 3: contentType is application/json or application/vnd.api+json - handle as JSON
+    else if (
+      dl.contentType === "application/json" ||
+      (dl.contentType.startsWith("application/") &&
+        dl.contentType.endsWith("+json"))
+    ) {
+      content = await response.json();
+      hashable = new TextEncoder().encode(JSON.stringify(content));
+    } else {
+      return {
+        url: dl.url,
+        error: new Error(`Unsupported content type: ${dl.contentType}`),
+      };
     }
 
     const sha256 = createHash("sha256");

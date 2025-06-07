@@ -1,11 +1,11 @@
 import { createLogger } from "common/log";
-import type { Manifest } from "./types/zod/app-manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type { EndNode } from "./end-node.ts";
 import type {
   EndNodeController,
   EndNodeControllerFactory,
 } from "./types/end-node-controller.ts";
+import type { ThingModel } from "./types/thing-models.ts";
 
 export abstract class EdgeConnector {
   protected readonly controllers = new Map<
@@ -86,13 +86,13 @@ export abstract class EdgeConnector {
 
   startNodeAdaptation(
     uuid: string,
-    newManifest: Manifest | URL,
+    newTM: ThingModel | URL,
   ): Promise<void> {
     const controller = this.controllers.get(uuid);
     if (!controller) {
       return Promise.reject(new Error(`Controller for UUID ${uuid} not found`));
     }
-    return controller.startAdaptation(newManifest);
+    return controller.startAdaptation(newTM);
   }
 
   protected async startNodeController(

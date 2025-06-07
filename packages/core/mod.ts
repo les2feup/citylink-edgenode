@@ -7,13 +7,9 @@ export { EdgeConnector } from "./src/edge-connector.ts";
 
 export type {
   AppContentTypes,
-  AppManifest,
-  CoreManifest,
-  FullManifest,
   Manifest,
-  ManifestDownloadArray,
-  ManifestDownloadItem,
-  ManifestWoTMetadata,
+  ManifestSourceItem,
+  ManifestSourceList,
 } from "./src/types/zod/manifest.ts";
 
 export type { SourceFile } from "./src/types/app-source.ts";

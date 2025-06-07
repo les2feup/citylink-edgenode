@@ -1,5 +1,5 @@
 import type { EndNode } from "../end-node.ts";
-import type { Manifest } from "../types/zod/app-manifest.ts";
+import type { ThingModel } from "./thing-models.ts";
 
 export type ControllerCompatibleTM = {
   title: string;
@@ -10,7 +10,7 @@ export interface EndNodeController {
   stop(): void | Promise<void>;
   start(): void | Promise<void>;
 
-  startAdaptation(manifest: Manifest | URL): Promise<void>;
+  startAdaptation(tm: ThingModel | URL): Promise<void>;
 
   get endNode(): Readonly<EndNode>;
   get compatible(): Readonly<ControllerCompatibleTM>;
