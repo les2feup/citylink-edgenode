@@ -20,7 +20,7 @@ export interface EmbeddedCoreThingModel extends ThingModel {
   ];
 }
 
-export interface PlatfromThingModel extends ThingModel {
+export interface PlatformThingModel extends ThingModel {
   "@type": [
     "tm:ThingModel",
     "citylink:PlatTM",
