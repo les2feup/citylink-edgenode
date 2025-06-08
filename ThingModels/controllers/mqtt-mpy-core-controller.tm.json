@@ -3,7 +3,10 @@
         "https://www.w3.org/2022/wot/td/v1.1",
         "https://raw.githubusercontent.com/w3c/wot-binding-templates/refs/heads/main/bindings/protocols/mqtt/context.jsonld"
     ],
-    "@type": "tm:ThingModel",
+    "@type": [
+        "tm:ThingModel",
+        "citylink:NCTM"
+    ],
     "title": "MQTT MPY Core Controller",
     "description": "This Thing Model describes the MQTT MPY Core Controller, which is used to manage and control the MQTT MPY Core nodes.",
     "version": {
@@ -14,11 +17,5 @@
             "scheme": "nosec"
         }
     },
-    "security": "nosec_sc",
-    "uriVariables": {
-        "nodeID": {
-            "type": "string",
-            "description": "Unique identifier for the end node prior to registration."
-        }
-    }
+    "security": "nosec_sc"
 }
