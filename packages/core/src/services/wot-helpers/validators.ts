@@ -87,7 +87,7 @@ function isValidCityLinkTMType(types: unknown, tag: string): boolean {
 
 function isValidEmbeddedCoreLink(link: LinkElement): link is EmbeddedCoreLink {
   return (
-    link.rel === "tm:submodel" &&
+    (link.rel === "tm:submodel" || link.rel === "tm:extends") &&
     link.type === "application/tm+json" &&
     link.instanceName === "citylink:embeddedCore"
   );
@@ -95,7 +95,7 @@ function isValidEmbeddedCoreLink(link: LinkElement): link is EmbeddedCoreLink {
 
 function isValidPlatformLink(link: LinkElement): link is PlatformLink {
   return (
-    link.rel === "tm:submodel" &&
+    (link.rel === "tm:submodel" || link.rel === "tm:extends") &&
     link.type === "application/tm+json" &&
     link.instanceName === "citylink:platform"
   );

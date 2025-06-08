@@ -12,13 +12,13 @@ export interface LinkElement extends BaseLinkElement {
 }
 
 export interface EmbeddedCoreLink extends LinkElement {
-  rel: "tm:submodel";
+  rel: "tm:submodel" | "tm:extends";
   type: "application/tm+json";
   instanceName: "citylink:embeddedCore";
 }
 
 export interface PlatformLink extends LinkElement {
-  rel: "tm:submodel";
+  rel: "tm:submodel" | "tm:extends";
   type: "application/tm+json";
   instanceName: "citylink:platform";
 }
