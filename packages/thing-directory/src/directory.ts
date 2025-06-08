@@ -1,6 +1,6 @@
 import { JSONPath } from "jsr:@stdext/json";
-import type * as cl from "@citylink-edgc/core"; // Assuming this type definition is available
-import { createLogger } from "common/log"; // Assuming this utility is available
+import * as cl from "@citylink-edgc/core";
+import { createLogger } from "common/log";
 import type { JsonValue } from "jsr:@std/json@^1/types";
 
 /**
@@ -13,9 +13,7 @@ export class ThingDirectory {
   // Logger instance for logging messages within the class.
   private logger = createLogger("thing-directory", "main");
 
-  constructor() {
-    // Constructor for the ThingDirectory. No specific initialization logic needed here currently.
-  }
+  constructor() {}
 
   /**
    * Adds an EdgeConnector instance to the directory.
@@ -30,16 +28,13 @@ export class ThingDirectory {
     }
     // Add the new EdgeConnector to the list.
     this.connectorInstances.push(ec);
-    // In a full implementation, this is where you'd trigger a 'thingCreated' event
-    // this.emitThingCreated(ec.getRegisteredNodes().map(n => n.thingDescription));
   }
 
   /**
    * Starts the Deno HTTP server to serve Thing Directory API requests.
-   * @param baseUrl The base URL for the server (defaults to "http://localhost:8080").
-   * @returns A Promise that resolves when the server starts.
+   * @param baseUrl The base URL for the server (defaults to "http://localhost:8000").
    */
-  start(hostname: string = "localhost", port: number = 8080): void {
+  start(hostname: string = "localhost", port: number = 8000): void {
     this.logger.info(
       { ip: hostname, port },
       "Starting ThingDirectory",
@@ -97,7 +92,6 @@ export class ThingDirectory {
           );
         }
 
-        // If no matching route is found, return a 404 Not Found response.
         return new Response("Not Found", { status: 404 });
       } catch (err) {
         // Global error handling for any issues during request processing.
@@ -199,8 +193,8 @@ export class ThingDirectory {
 
     for (const connector of this.connectorInstances) {
       for (const node of connector.getRegisteredNodes()) {
-        if (node.thingDescription.id === thingId) {
-          this.logger.debug({ thingId, node }, "Retrieved Thing");
+        if (node.thingDescription.id === thingId || node.id === thingId) {
+          this.logger.debug({ thingId }, "Retrieved Thing");
           return new Response(JSON.stringify(node.thingDescription), {
             headers: { "Content-Type": "application/td+json" }, // According to Thing Model specification
           });
@@ -267,42 +261,26 @@ export class ThingDirectory {
     uriVars: URLSearchParams,
     req: Request,
   ): Response {
-    const diff = uriVars.get("diff") === "true";
-    this.logger.info(`New SSE connection for ${eventType} (diff=${diff})`);
-
+    const _diff = uriVars.get("diff") === "true";
     const encoder = new TextEncoder();
+
     const readableStream = new ReadableStream({
       start: (controller) => {
-        // Send initial connection message
+        cl.eventBus.register(eventType, controller);
+        this.logger.info(
+          { eventType, diff: _diff },
+          `Client connected to event stream`,
+        );
+
         controller.enqueue(
           encoder.encode(
             `event: connected\ndata: Connected to ${eventType} event stream.\n\n`,
           ),
         );
 
-        // In a real application, you'd subscribe this connection to an internal
-        // event bus that pushes actual Thing created/updated/deleted events.
-        // For this skeleton, we'll send a periodic mock event.
-        let eventId = 0;
-        const intervalId = setInterval(() => {
-          eventId++;
-          const data = {
-            id: `mock-thing-${eventId}`,
-            description: `A mock thing ${eventType} event`,
-            timestamp: new Date().toISOString(),
-            diff: diff, // Reflects the 'diff' parameter
-          };
-          const eventMessage = `id: ${eventId}\nevent: ${eventType}\ndata: ${
-            JSON.stringify(data)
-          }\n\n`;
-          controller.enqueue(encoder.encode(eventMessage));
-        }, 5000); // Send a mock event every 5 seconds
-
-        // Clean up when the client disconnects or stream is closed
         req.signal.addEventListener("abort", () => {
-          clearInterval(intervalId);
+          cl.eventBus.unregister(controller);
           controller.close();
-          this.logger.info(`SSE connection for ${eventType} aborted.`);
         });
       },
     });

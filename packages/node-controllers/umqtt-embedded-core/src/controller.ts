@@ -8,7 +8,7 @@ import type {
   ThingDescriptionOpts,
   ThingModel,
 } from "@citylink-edgc/core";
-import { EndNode } from "@citylink-edgc/core";
+import { EndNode, eventBus, EventType } from "@citylink-edgc/core";
 import { createLogger } from "common/log";
 import { mqttTransforms } from "common/td-transforms";
 import mqtt from "mqtt";
@@ -279,7 +279,10 @@ export class UMQTTCoreController implements EndNodeController {
       },
     };
 
-    // this.prevNodeConfig = this.node; // TODO: save previous config to attempt rollback if needed
+    // TODO: save previous config to attempt rollback if needed
+    // this.prevNodeConfig = this.node;
+
+    //TODO: verify compatibility of new TM
     this.node = await EndNode.from(tm, opts);
 
     return new Promise((resolve, reject) => {
@@ -311,7 +314,12 @@ export class UMQTTCoreController implements EndNodeController {
         "⚠️ Device will reboot and its state will be `UNDEF` until reconnection.",
       );
       this.adaptationFinishPromise = { resolve, reject };
-      this.invokeAction("citylink:embeddedCore_OTAUFinish").catch((err) => {
+      this.invokeAction("citylink:embeddedCore_OTAUFinish").then(
+        () => {
+          this.logger?.info("✅ OTAU finish action invoked successfully.");
+          eventBus.thingUpdated(this.node.thingDescription.id!);
+        },
+      ).catch((err) => {
         this.logger?.error(
           { error: err },
           "❌ Failed to invoke OTAU finish action",

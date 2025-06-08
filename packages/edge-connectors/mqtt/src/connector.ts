@@ -1,6 +1,8 @@
 import {
   EdgeConnector,
   EndNode,
+  eventBus,
+  EventType,
   type ThingDescription,
   type ThingDescriptionOpts,
 } from "@citylink-edgc/core";
@@ -147,6 +149,7 @@ export class MqttEdgeConnector extends EdgeConnector {
 
       this.nodesWaitingRegistration.delete(id);
       this.logger?.info(`Node ${id} registered successfully.`);
+      eventBus.thingCreated(newNode.thingDescription.id!);
     } catch (e) {
       await this.controllers.get(id)?.stop();
       this.controllers.delete(id);

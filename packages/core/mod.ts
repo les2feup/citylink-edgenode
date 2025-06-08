@@ -54,3 +54,5 @@ export const CacheService = {
 };
 
 export type { AppManifestCache, ThingModelCache } from "./src/types/cache.ts";
+
+export { eventBus, EventType } from "./src/events.ts";
