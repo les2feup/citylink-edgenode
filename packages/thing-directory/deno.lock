@@ -3,7 +3,11 @@
   "specifiers": {
     "jsr:@std/bytes@^1.0.6": "1.0.6",
     "jsr:@std/crypto@^1.0.5": "1.0.5",
+    "jsr:@std/json@1": "1.0.2",
+    "jsr:@std/streams@^1.0.9": "1.0.9",
     "jsr:@std/uuid@*": "1.0.8",
+    "jsr:@stdext/json@*": "0.1.0",
+    "npm:@types/node@*": "22.12.0",
     "npm:ajv-formats@*": "3.0.1_ajv@8.17.1",
     "npm:ajv@*": "8.17.1",
     "npm:debug@*": "4.4.1",
@@ -22,15 +26,36 @@
     "@std/crypto@1.0.5": {
       "integrity": "0dcfbb319fe0bba1bd3af904ceb4f948cde1b92979ec1614528380ed308a3b40"
     },
+    "@std/json@1.0.2": {
+      "integrity": "d9e5497801c15fb679f55a2c01c7794ad7a5dfda4dd1bebab5e409cb5e0d34d4",
+      "dependencies": [
+        "jsr:@std/streams"
+      ]
+    },
+    "@std/streams@1.0.9": {
+      "integrity": "a9d26b1988cdd7aa7b1f4b51e1c36c1557f3f252880fa6cc5b9f37078b1a5035"
+    },
     "@std/uuid@1.0.8": {
       "integrity": "2c3aa3de49271c042b57f0362018c380103c11aafdf89227f5fa2662e6568623",
       "dependencies": [
         "jsr:@std/bytes",
         "jsr:@std/crypto"
       ]
+    },
+    "@stdext/json@0.1.0": {
+      "integrity": "ada83b011dc928648be1e7e4cd2e2932c5dfd6ad7c7847825a155b6efec8c9a8",
+      "dependencies": [
+        "jsr:@std/json"
+      ]
     }
   },
   "npm": {
+    "@types/node@22.12.0": {
+      "integrity": "sha512-Fll2FZ1riMjNmlmJOdAyY5pUbkftXslB5DgEzlIuNaiWhXd00FhWxVC/r4yV/4wBb9JfImTu+jiSvXTkJ7F/gA==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
     "ajv-formats@3.0.1_ajv@8.17.1": {
       "integrity": "sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==",
       "dependencies": [
@@ -194,6 +219,9 @@
       "dependencies": [
         "real-require"
       ]
+    },
+    "undici-types@6.20.0": {
+      "integrity": "sha512-Ny6QZ2Nju20vw1SRHe3d9jVu6gJ+4e3+MMpqu7pqE5HT6WsTSlce++GQmK5UXS8mzV8DSYHrQH+Xrf2jVcuKNg=="
     },
     "wot-thing-description-types@1.1.0-12-March-2025": {
       "integrity": "sha512-BRRW4uBATljCPqCbpzNhgY2HFXz8Llh7mAJmjkVimxizOPq8bkmlm0Op/Yv8l7pNQ1GaoBtYwn2BQQjhcQCadA=="

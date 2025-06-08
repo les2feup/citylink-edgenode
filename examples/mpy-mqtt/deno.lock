@@ -8,9 +8,11 @@
     "jsr:@std/fmt@^1.0.5": "1.0.8",
     "jsr:@std/fs@^1.0.11": "1.0.17",
     "jsr:@std/io@~0.225.2": "0.225.2",
+    "jsr:@std/json@1": "1.0.2",
     "jsr:@std/log@*": "0.224.14",
     "jsr:@std/path@*": "1.0.8",
     "jsr:@std/uuid@*": "1.0.8",
+    "jsr:@stdext/json@*": "0.1.0",
     "npm:ajv-formats@*": "3.0.1_ajv@8.17.1",
     "npm:ajv@*": "8.17.1",
     "npm:debug@*": "4.4.1",
@@ -43,6 +45,9 @@
     "@std/io@0.225.2": {
       "integrity": "3c740cd4ee4c082e6cfc86458f47e2ab7cb353dc6234d5e9b1f91a2de5f4d6c7"
     },
+    "@std/json@1.0.2": {
+      "integrity": "d9e5497801c15fb679f55a2c01c7794ad7a5dfda4dd1bebab5e409cb5e0d34d4"
+    },
     "@std/log@0.224.14": {
       "integrity": "257f7adceee3b53bb2bc86c7242e7d1bc59729e57d4981c4a7e5b876c808f05e",
       "dependencies": [
@@ -60,6 +65,9 @@
         "jsr:@std/bytes",
         "jsr:@std/crypto"
       ]
+    },
+    "@stdext/json@0.1.0": {
+      "integrity": "ada83b011dc928648be1e7e4cd2e2932c5dfd6ad7c7847825a155b6efec8c9a8"
     }
   },
   "npm": {

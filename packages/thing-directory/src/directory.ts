@@ -1,5 +1,7 @@
+import { JSONPath } from "jsr:@stdext/json";
 import type * as cl from "@citylink-edgc/core"; // Assuming this type definition is available
 import { createLogger } from "common/log"; // Assuming this utility is available
+import type { JsonValue } from "jsr:@std/json@^1/types";
 
 /**
  * ThingDirectory class manages EdgeConnectors and provides API endpoints
@@ -197,7 +199,7 @@ export class ThingDirectory {
 
     for (const connector of this.connectorInstances) {
       for (const node of connector.getRegisteredNodes()) {
-        if (node.id === thingId) {
+        if (node.thingDescription.id === thingId) {
           this.logger.debug({ thingId, node }, "Retrieved Thing");
           return new Response(JSON.stringify(node.thingDescription), {
             headers: { "Content-Type": "application/td+json" }, // According to Thing Model specification
@@ -223,23 +225,32 @@ export class ThingDirectory {
       return this.errorResponse("JSONPath expression not provided.", 400);
     }
 
-    // --- Placeholder for actual JSONPath search logic ---
-    // In a real implementation, you would:
-    // 1. Parse the JSONPath query.
-    // 2. Iterate through all registered Thing Descriptions.
-    // 3. Apply the JSONPath query to each Thing Description.
-    // 4. Aggregate the results.
-    // Deno doesn't have a built-in JSONPath engine, you'd need an external library.
-    const mockSearchResults = {
-      message:
-        `JSONPath search for query: "${query}" (actual search logic not implemented yet)`,
-      results: [], // Placeholder for actual results
-    };
+    try {
+      const allThings: cl.ThingDescription[] = this.connectorInstances.flatMap(
+        (ec) => ec.getRegisteredNodes().map((n) => n.thingDescription),
+      );
 
-    return new Response(JSON.stringify(mockSearchResults), {
-      headers: { "Content-Type": "application/json" },
-      status: 200,
-    });
+      const results = allThings.flatMap((td) => {
+        const jp = new JSONPath(td as JsonValue);
+        const matches = jp.query(query);
+        return matches.length > 0
+          ? [
+            { thingId: td.id, href: `/things/${td.id}`, matches },
+          ]
+          : [];
+      });
+
+      return new Response(JSON.stringify({ query, results }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    } catch (err) {
+      this.logger.error(err, "JSONPath search failed");
+      return this.errorResponse(
+        `JSONPath search failed: ${err instanceof Error ? err.message : err}`,
+        500,
+      );
+    }
   }
 
   /**
