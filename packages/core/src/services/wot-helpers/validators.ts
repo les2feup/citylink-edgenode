@@ -7,8 +7,10 @@ import {
 import type {
   ApplicationTM,
   ControllerLink,
+  EdgeConnectorTM,
   EmbeddedCoreLink,
   EmbeddedCoreTM,
+  LinkedThingModel,
   LinkElement,
   ManifestLink,
   NodeControllerTM,
@@ -78,16 +80,9 @@ function isValidWoTThingModel(tm: unknown): tm is WoTTM {
   return ThingModelHelpers.isThingModel(tm);
 }
 
-function isValidCityLinkTMType(types: unknown, tag: string): boolean {
-  return (
-    Array.isArray(types) &&
-    types.includes(`citylink:${tag}`)
-  );
-}
-
 function isValidEmbeddedCoreLink(link: LinkElement): link is EmbeddedCoreLink {
   return (
-    (link.rel === "tm:submodel" || link.rel === "tm:extends") &&
+    link.rel === "tm:submodel" &&
     link.type === "application/tm+json" &&
     link.instanceName === "citylink:embeddedCore"
   );
@@ -95,7 +90,7 @@ function isValidEmbeddedCoreLink(link: LinkElement): link is EmbeddedCoreLink {
 
 function isValidPlatformLink(link: LinkElement): link is PlatformLink {
   return (
-    (link.rel === "tm:submodel" || link.rel === "tm:extends") &&
+    link.rel === "tm:submodel" &&
     link.type === "application/tm+json" &&
     link.instanceName === "citylink:platform"
   );
@@ -145,15 +140,10 @@ function isValidSupportedControllerLink(
   );
 }
 
-export function isValidThingModel(
-  tm: unknown,
-): tm is ThingModel {
+export function hasValidLinks(
+  tm: ThingModel,
+): tm is LinkedThingModel {
   return (
-    isValidWoTThingModel(tm) &&
-    isValidThingContext(tm["@context"]) &&
-    isValidThingModelVersion(tm.version) &&
-    typeof tm.title === "string" &&
-    tm.title.length > 0 &&
     Array.isArray(tm.links) &&
     tm.links.every(
       (link) =>
@@ -169,10 +159,26 @@ export function isValidThingModel(
   );
 }
 
+export function isValidThingModel(
+  tm: unknown,
+  tag?: ThingModelTags[keyof ThingModelTags],
+): tm is ThingModel {
+  return (
+    isValidWoTThingModel(tm) &&
+      isValidThingContext(tm["@context"]) &&
+      isValidThingModelVersion(tm.version) &&
+      typeof tm.title === "string" &&
+      tm.title.length > 0 &&
+      tag !== undefined
+      ? (Array.isArray(tm["@type"]) &&
+        tm["@type"].includes(`citylink:${tag}`))
+      : true
+  );
+}
+
 export function isValidPlatformTM(tm: unknown): tm is PlatformTM {
   return (
-    isValidThingModel(tm) &&
-    isValidCityLinkTMType(tm["@type"], ThingModelTags.platform)
+    isValidThingModel(tm, ThingModelTags.platform)
   );
 }
 
@@ -180,8 +186,8 @@ export function isValidEmbeddedCoreTM(
   tm: unknown,
 ): tm is EmbeddedCoreTM {
   return (
-    isValidThingModel(tm) &&
-    isValidCityLinkTMType(tm["@type"], ThingModelTags.embeddedCore) &&
+    isValidThingModel(tm, ThingModelTags.embeddedCore) &&
+    hasValidLinks(tm) &&
     tm.links.filter(isValidControllerLink).length === 1 && // Must have exactly one controller link
     XOR( // XOR to ensure exactly one of these is present
       tm.links.filter(isValidManifestLink).length === 1,
@@ -194,8 +200,8 @@ export function isValidApplicationTM(
   tm: unknown,
 ): tm is ApplicationTM {
   return (
-    isValidThingModel(tm) &&
-    isValidCityLinkTMType(tm["@type"], ThingModelTags.application) &&
+    isValidThingModel(tm, ThingModelTags.application) &&
+    hasValidLinks(tm) &&
     tm.links.filter(isValidEmbeddedCoreLink).length === 1 &&
     tm.links.filter(isValidPlatformLink).length === 1 &&
     XOR( // XOR to ensure exactly one of these is present
@@ -208,27 +214,21 @@ export function isValidApplicationTM(
 export function isValidRegistrationListenerTM(
   tm: unknown,
 ): tm is RegistrationListenerTM {
-  return (
-    isValidThingModel(tm) &&
-    isValidCityLinkTMType(tm["@type"], ThingModelTags.registrationListener)
-  );
+  return isValidThingModel(tm, ThingModelTags.registrationListener);
 }
 
 export function isValidNodeControllerTM(
   tm: unknown,
 ): tm is NodeControllerTM {
-  return (
-    isValidThingModel(tm) &&
-    isValidCityLinkTMType(tm["@type"], ThingModelTags.nodeController)
-  );
+  return isValidThingModel(tm, ThingModelTags.nodeController);
 }
 
 export function isValidEdgeConnectorTM(
   tm: unknown,
-): tm is NodeControllerTM {
+): tm is EdgeConnectorTM {
   return (
-    isValidThingModel(tm) &&
-    isValidCityLinkTMType(tm["@type"], ThingModelTags.edgeConnector) &&
+    isValidThingModel(tm, ThingModelTags.edgeConnector) &&
+    hasValidLinks(tm) &&
     tm.links.some(isValidSupportedControllerLink) && // Must have at least one supported controller link
     XOR(
       tm.links.filter(isValidRegListenerSubmodelLink).length === 1,

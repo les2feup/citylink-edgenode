@@ -10,6 +10,9 @@ import type {
   ManifestSourceItem,
   ManifestSourceList,
 } from "../types/zod/manifest.ts";
+import { createLogger } from "common/log";
+
+const logger = createLogger("core", "fetchAppSource");
 
 export async function fetchAppSource(
   source: ManifestSourceList,
@@ -23,8 +26,12 @@ async function fetchSingleFile(
 ): Promise<SourceFile | AppFetchError> {
   // before fetching, try the file cache
   const cache = getAppContentCache();
-  const cachedFile = cache.get(dl.url);
+  const cachedFile = await cache.get(dl.url);
   if (cachedFile) {
+    logger.debug(
+      { url: dl.url, filename: dl.filename },
+      "Using cached file",
+    );
     return { path: dl.filename, url: dl.url, content: cachedFile };
   }
 
@@ -42,10 +49,18 @@ async function fetchSingleFile(
 
     // option 1: contentType is application/octet-stream - handle as binary
     if (dl.contentType === "application/octet-stream") {
+      logger.debug(
+        { url: dl.url, filename: dl.filename },
+        "Fetching binary content",
+      );
       content = await response.bytes();
       hashable = content as Uint8Array;
     } // Option 2: contentType is text/plain or similar - handle as text
     else if (dl.contentType.startsWith("text/")) {
+      logger.debug(
+        { url: dl.url, filename: dl.filename },
+        "Fetching text content",
+      );
       content = await response.text();
       hashable = new TextEncoder().encode(content);
     } // Option 3: contentType is application/json or application/vnd.api+json - handle as JSON
@@ -54,6 +69,10 @@ async function fetchSingleFile(
       (dl.contentType.startsWith("application/") &&
         dl.contentType.endsWith("+json"))
     ) {
+      logger.debug(
+        { url: dl.url, filename: dl.filename },
+        "Fetching JSON content",
+      );
       content = await response.json();
       hashable = new TextEncoder().encode(JSON.stringify(content));
     } else {
@@ -75,7 +94,12 @@ async function fetchSingleFile(
       };
     }
 
-    cache.set(dl.url, content);
+    logger.debug(
+      { url: dl.url, filename: dl.filename, sha256: digested },
+      "File fetched and SHA256 verified",
+    );
+
+    await cache.set(dl.url, content);
     return { path: dl.filename, url: dl.url, content };
   } catch (error) {
     return {

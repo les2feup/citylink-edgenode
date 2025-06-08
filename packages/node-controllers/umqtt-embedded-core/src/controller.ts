@@ -413,7 +413,7 @@ export class UMQTTCoreController implements EndNodeController {
     switch (affordanceName) {
       case "otau/report":
         this.logger?.info(
-          { affordanceName, value },
+          { affordanceName },
           "Received OTAU report event",
         );
         this.handleOtauReport(value);
@@ -422,7 +422,7 @@ export class UMQTTCoreController implements EndNodeController {
         this.logger?.warn(
           {
             affordanceName,
-            value,
+            value: JSON.stringify(value),
           },
           "⚠️ Unknown core event",
         );
@@ -434,7 +434,10 @@ export class UMQTTCoreController implements EndNodeController {
     const parsed = OTAUReport.safeParse(json);
     if (!parsed.success) {
       this.logger?.error(
-        { error: parsed.error.format() },
+        {
+          received: JSON.stringify(value, null, 2),
+          error: parsed.error.format(),
+        },
         "❌ Invalid OTAU report",
       );
       return;

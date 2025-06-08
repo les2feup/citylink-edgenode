@@ -22,11 +22,12 @@ export type {
 
 import * as wotHelpers from "./src/services/wot-helpers/mod.ts";
 import { fetchManifest } from "./src/services/fetch-manifest.ts";
-export const utils = { fetchManifest, ...wotHelpers };
+import { produceTD } from "./src/services/produce-thing-description.ts";
+export const utils = { produceTD, fetchManifest, ...wotHelpers };
 export * from "./src/types/thing-model-types.ts";
 
 export type {
-  EndNodePlaceholderMap,
+  DefaultPlaceholderMap,
   ThingDescriptionOpts,
 } from "./src/types/thing-description-opts.ts";
 

@@ -1,11 +1,11 @@
-import { produceEndNodeTD } from "./services/produce-thing-description.ts";
+import { produceTD } from "./services/produce-thing-description.ts";
 import { v4 } from "jsr:@std/uuid";
 import { createLogger } from "common/log";
 
 import type { Manifest } from "./types/zod/manifest.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type {
-  EndNodePlaceholderMap,
+  DefaultPlaceholderMap,
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
 import type { ApplicationTM, ThingModel } from "./types/thing-model-types.ts";
@@ -37,7 +37,7 @@ export class EndNode {
     }
   }
 
-  static async from<tmap extends EndNodePlaceholderMap>(
+  static async from<tmap extends DefaultPlaceholderMap>(
     arg: ThingModel | URL,
     opts: ThingDescriptionOpts<tmap>,
   ): Promise<EndNode> {
@@ -87,7 +87,7 @@ export class EndNode {
         ...opts.placeholderMap,
         ...manifest.placeholder, // Merge any extra placeholders from the manifest
       };
-      const td = await produceEndNodeTD(tm, opts);
+      const td = await produceTD(tm, opts);
       const uuid = td.id!.split("urn:uuid:")[1];
       return new EndNode(uuid, manifest, td, compatible);
     } catch (error) {
@@ -130,7 +130,7 @@ export async function resolveControllerCompatible(
   tm: ApplicationTM,
 ): Promise<ControllerCompatibleTM> {
   const embeddedCoreLink = tm.links.find((link) =>
-    link.instanceName === "citylink:embeddedCore" && link.rel === "tm:submodel"
+    link.instanceName === "citylink:embeddedCore"
   )!; // the link is guaranteed to exist by the type guard
 
   const embeddedCoreTM = await fetchThingModel(embeddedCoreLink.href);

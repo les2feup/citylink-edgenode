@@ -1,15 +1,38 @@
 import type { AppContentTypes } from "@citylink-edgc/core";
 import { encodeBase64 } from "@std/encoding/base64";
+import { createLogger } from "common/log";
+
+const logger = createLogger("core", "ContentEncoding");
 
 export function encodeContentBase64(content: AppContentTypes): string {
+  logger.debug(
+    { ContentType: typeof content, Content: content },
+    "Encoding content to Base64",
+  );
+
+  let encoded: string;
   switch (typeof content) {
     case "string":
-      return encodeBase64(content);
+      encoded = encodeBase64(content);
+      break;
     case "object": {
       if (content instanceof Uint8Array) {
-        return encodeBase64(content);
+        encoded = encodeBase64(content);
+        break;
       }
-      return encodeBase64(JSON.stringify(content));
+      encoded = encodeBase64(JSON.stringify(content));
+      break;
     }
+    default:
+      throw new Error(
+        `Unsupported content type for encoding: ${typeof content}`,
+      );
   }
+
+  logger.debug(
+    { EncodedContent: encoded },
+    "Content encoded to Base64 successfully",
+  );
+
+  return encoded;
 }

@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 export const OTAUWriteResult = z.object({
-  error: z.literal(false),
+  error: z.literal(false).optional(),
   written: z.string(),
   deleted: z.never().optional(), // to prevent overlap
 });
 
 export const OTAUDeleteResult = z.object({
-  error: z.literal(false),
+  error: z.literal(false).optional(),
   deleted: z.array(z.string()),
   written: z.never().optional(),
 });

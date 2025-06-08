@@ -12,13 +12,13 @@ export interface LinkElement extends BaseLinkElement {
 }
 
 export interface EmbeddedCoreLink extends LinkElement {
-  rel: "tm:submodel" | "tm:extends";
+  rel: "tm:submodel";
   type: "application/tm+json";
   instanceName: "citylink:embeddedCore";
 }
 
 export interface PlatformLink extends LinkElement {
-  rel: "tm:submodel" | "tm:extends";
+  rel: "tm:submodel";
   type: "application/tm+json";
   instanceName: "citylink:platform";
 }
@@ -65,29 +65,33 @@ export interface ThingModel extends WoTTM {
   "@context": ThingContext;
   title: ThingModelTitle;
   version: ThingModelVersion;
-  links: LinkElement[];
   "citylink:manifest"?: Manifest;
+}
+
+export interface LinkedThingModel extends ThingModel {
+  links: LinkElement[];
 }
 
 type Brand<K, T> = K & { __brand: T };
 
 export const ThingModelTags = {
-  application: "AppTM",
   platform: "PlatTM",
   embeddedCore: "EmbCTM",
+  application: "AppTM",
+
   edgeConnector: "ECTM",
-  registrationListener: "RegLTM",
   nodeController: "NCTM",
+  registrationListener: "RegLTM",
 } as const;
 export type ThingModelTags = typeof ThingModelTags;
 
 export type PlatformTM = Brand<ThingModel, ThingModelTags["platform"]>;
 export type EmbeddedCoreTM = Brand<
-  ThingModel,
+  LinkedThingModel,
   ThingModelTags["embeddedCore"]
 >;
 export type ApplicationTM = Brand<
-  ThingModel,
+  LinkedThingModel,
   ThingModelTags["application"]
 >;
 export type RegistrationListenerTM = Brand<
@@ -99,6 +103,6 @@ export type NodeControllerTM = Brand<
   ThingModelTags["nodeController"]
 >;
 export type EdgeConnectorTM = Brand<
-  ThingModel,
+  LinkedThingModel,
   ThingModelTags["edgeConnector"]
 >;

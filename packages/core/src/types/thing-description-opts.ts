@@ -3,7 +3,7 @@ import type { ExposedThingInit } from "npm:wot-typescript-definitions";
 
 // TODO: make into zod schema?
 // TODO: These fields would benefit from better names.
-export interface EndNodePlaceholderMap {
+export interface DefaultPlaceholderMap {
   CITYLINK_ID: string;
   CITYLINK_HREF: string;
 
@@ -11,7 +11,7 @@ export interface EndNodePlaceholderMap {
 }
 
 export interface ThingDescriptionOpts<
-  tmap extends EndNodePlaceholderMap = EndNodePlaceholderMap,
+  tmap extends Record<string, unknown> = Record<string, unknown>,
 > {
   baseUrl?: string;
   placeholderMap: tmap;

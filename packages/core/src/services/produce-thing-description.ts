@@ -1,25 +1,24 @@
 import type { ThingModel } from "../types/thing-model-types.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
-import type {
-  EndNodePlaceholderMap,
-  ThingDescriptionOpts,
-} from "../types/thing-description-opts.ts";
+import type { ThingDescriptionOpts } from "../types/thing-description-opts.ts";
 import { createLogger } from "common/log";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
 import type { CompositionOptions } from "@eclipse-thingweb/thing-model";
 import { producePartialTDs } from "./wot-helpers/mod.ts";
 
-export async function produceEndNodeTD<tmap extends EndNodePlaceholderMap>(
+export async function produceTD<
+  tmap extends Record<string, unknown>,
+>(
   model: ThingModel,
   opts: ThingDescriptionOpts<tmap>,
 ): Promise<ThingDescription> {
   const logger = createLogger("core", "produceTD");
-  if (!model.title) {
-    throw new Error("Model title is missing");
-  }
 
-  logger.info(`📝 Generating Thing Description for model "${model.title}"`);
+  logger.info(
+    { modelTitle: model.title, baseUrl: opts.baseUrl },
+    `📝 Generating Thing Description`,
+  );
 
   const options: CompositionOptions = {
     baseUrl: opts.baseUrl,
@@ -36,7 +35,8 @@ export async function produceEndNodeTD<tmap extends EndNodePlaceholderMap>(
     partialTD! as ThingDescription;
   td.id = `${opts.placeholderMap.CITYLINK_ID}`;
   logger.info(
-    `📝 Thing Description generated with id "${td.id}" for model "${model.title}"`,
+    { tdId: td.id, modelTitle: model.title },
+    `📝 New Thing Description generated`,
   );
 
   return td;

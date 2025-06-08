@@ -111,22 +111,14 @@ export class MqttEdgeConnector extends EdgeConnector {
     id: string,
     regMsg: RegistrationSchema,
   ): Promise<void> {
-    if (this.nodesWaitingRegistration.has(id)) {
-      this.logger?.warn(
-        `Node with ID ${id} is already waiting for registration.`,
-        `Skipping duplicate registration attempt.`,
-      );
-      return;
-    }
-
     try {
       await this.registrationReply(id, { status: "ack" });
-      this.nodesWaitingRegistration.add(id);
 
       if (this.controllers.has(id)) {
         this.logger?.info(
-          `Node with ID ${id} is already registered with a valid controller.`,
-          `Skipping registration. Replying with Registration success`,
+          { NodeID: id },
+          "Node is already registered with a valid controller.",
+          "Skipping registration. Replying with success",
         );
 
         await this.registrationReply(id, {
@@ -135,6 +127,16 @@ export class MqttEdgeConnector extends EdgeConnector {
 
         return;
       }
+
+      if (this.nodesWaitingRegistration.has(id)) {
+        this.logger?.warn(
+          `Node with ID ${id} is already waiting for registration.`,
+          `Skipping duplicate registration attempt.`,
+        );
+        return;
+      }
+
+      this.nodesWaitingRegistration.add(id);
 
       const newNode = await this.createNode(regMsg);
       await this.startNodeController(newNode);
@@ -146,24 +148,19 @@ export class MqttEdgeConnector extends EdgeConnector {
       this.nodesWaitingRegistration.delete(id);
       this.logger?.info(`Node ${id} registered successfully.`);
     } catch (e) {
-      this.logger?.error({ Error: e }, `Node registration failed for ${id}:`);
-
       await this.controllers.get(id)?.stop();
       this.controllers.delete(id);
       this.nodesWaitingRegistration.delete(id);
 
-      this.logger?.warn(
-        `Node ${id} registration failed and its resources where removed.`,
+      this.logger?.error(
+        { NodeID: id, Error: e instanceof Error ? e.message : String(e) },
+        "Registration failed",
       );
 
       await this.registrationReply(id, {
         status: "error",
         message: e instanceof Error ? e.message : String(e),
       });
-
-      this.logger?.error(
-        `Registration reply sent with error status for node ${id}.`,
-      );
     }
   }
 
@@ -216,17 +213,16 @@ export class MqttEdgeConnector extends EdgeConnector {
     const topic = `citylink/${id}/registration/ack`;
     const message = JSON.stringify(reply);
 
-    this.logger?.debug(
-      `Sending registration reply for ${id} on topic ${topic}`,
-    );
-
     return new Promise<void>((resolve, reject) => {
       this.client!.publish(topic, message, { qos: 2, retain: false }, (err) => {
         if (err) {
           this.logger?.error(`Failed to publish registration reply: ${err}`);
           reject(err);
         } else {
-          this.logger?.debug(`Registration reply sent for ${id}`);
+          this.logger?.debug(
+            { id, topic, reply },
+            `Registration reply sent`,
+          );
           resolve();
         }
       });
