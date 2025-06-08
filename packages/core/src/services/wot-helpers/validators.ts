@@ -52,15 +52,22 @@ function isValidThingContext(value: unknown): value is ThingContext {
   return false;
 }
 
+function isStringRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    value !== null &&
+    value !== undefined &&
+    typeof value === "object" &&
+    !Array.isArray(value)
+  );
+}
+
 function isValidThingModelVersion(
   value: unknown,
 ): value is ThingModelVersion {
   return (
     typeof value === "string" ||
     (
-      typeof value === "object" &&
-      value !== null &&
-      !Array.isArray(value) &&
+      isStringRecord(value) &&
       "model" in value &&
       typeof value.model === "string"
     )
@@ -109,13 +116,23 @@ function isValidControllerLink(link: LinkElement): link is ControllerLink {
   );
 }
 
-function isValidRegistrationListenerLink(
+function isValidRegListenerSubmodelLink(
   link: LinkElement,
 ): link is RegistrationListenerLink {
   return (
-    link.rel === "tm:submodel" &&
     link.type === "application/tm+json" &&
+    link.rel === "tm:submodel" &&
     link.instanceName === "citylink:regListener"
+  );
+}
+
+function isValidRegistrationListenerExtendsLink(
+  link: LinkElement,
+): link is RegistrationListenerLink {
+  return (
+    link.type === "application/tm+json" &&
+    link.rel === "tm:extends" &&
+    link.instanceName === undefined
   );
 }
 
@@ -212,7 +229,12 @@ export function isValidEdgeConnectorTM(
   return (
     isValidThingModel(tm) &&
     isValidCityLinkTMType(tm["@type"], ThingModelTags.edgeConnector) &&
-    tm.links.filter(isValidRegistrationListenerLink).length === 1 &&
-    tm.links.some(isValidSupportedControllerLink) // Must have at least one supported controller link
+    tm.links.some(isValidSupportedControllerLink) && // Must have at least one supported controller link
+    XOR(
+      tm.links.filter(isValidRegListenerSubmodelLink).length === 1,
+      tm.links.filter(isValidRegistrationListenerExtendsLink).length <= 1 &&
+        isStringRecord(tm.actions) &&
+        "registration" in tm.actions,
+    )
   );
 }

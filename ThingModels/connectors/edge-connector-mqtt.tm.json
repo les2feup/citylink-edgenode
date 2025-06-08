@@ -3,7 +3,10 @@
         "https://www.w3.org/2022/wot/td/v1.1",
         "https://raw.githubusercontent.com/w3c/wot-binding-templates/refs/heads/main/bindings/protocols/mqtt/context.jsonld"
     ],
-    "@type": "tm:ThingModel",
+    "@type": [
+        "tm:ThingModel",
+        "citylink:ECTM"
+    ],
     "title": "Edge connector for MQTT",
     "description": "This TD describes a CityLink Edge Connector for MQTT.",
     "version": {
@@ -15,6 +18,13 @@
         }
     },
     "security": "nosec_sc",
+    "links": [
+        {
+            "rel": "citylink:supportedController",
+            "href": "https://raw.githubusercontent.com/les2feup/citylink-edgenode/refs/heads/main/ThingModels/controllers/mqtt-mpy-core-controller.tm.json",
+            "type": "application/tm+json"
+        }
+    ],
     "uriVariables": {
         "nodeID": {
             "type": "string",
@@ -25,12 +35,85 @@
         "registration": {
             "title": "End Node Registration",
             "description": "Register a new end node with the connector.",
+            "uriVariables": {
+                "nodeID": {
+                    "type": "string",
+                    "description": "Unique identifier for the end node prior to registration."
+                }
+            },
             "forms": [
                 {
                     "href": "{{CITYLINK_HREF}}",
                     "mqv:topic": "citylink/{nodeID}/registration",
                     "contentType": "application/json",
                     "op": "invokeaction",
+                    "mqv:qos": 2,
+                    "mqv:retain": false
+                }
+            ]
+        }
+    },
+    "events": {
+        "response": {
+            "title": "End Node Registration Response",
+            "description": "Event triggered when an end node registration is acknowledged by the controller.",
+            "uriVariables": {
+                "nodeID": {
+                    "type": "string",
+                    "description": "Unique identifier for the end node prior to registration."
+                }
+            },
+            "data": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "title": "Registration Acknowledgment",
+                        "description": "Acknowledgment of the end node registration. Signaling the start of the registration procedure.",
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "const": "ack"
+                            }
+                        }
+                    },
+                    {
+                        "type": "object",
+                        "title": "Registration Error",
+                        "description": "Error during the end node registration procedure.",
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "const": "error"
+                            },
+                            "message": {
+                                "type": "string",
+                                "description": "Description of the error that occurred during registration."
+                            }
+                        }
+                    },
+                    {
+                        "type": "object",
+                        "title": "Registration Success",
+                        "description": "Successful end node registration.",
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "const": "success"
+                            },
+                            "id": {
+                                "type": "string",
+                                "description": "Unique identifier assigned to the end node after successful registration."
+                            }
+                        }
+                    }
+                ]
+            },
+            "forms": [
+                {
+                    "href": "{{CITYLINK_HREF}}",
+                    "mqv:topic": "citylink/{nodeID}/registration/ack",
+                    "contentType": "application/json",
+                    "op": "subscribeevent",
                     "mqv:qos": 2,
                     "mqv:retain": false
                 }

@@ -34,9 +34,9 @@ export interface ControllerLink extends LinkElement {
 }
 
 export interface RegistrationListenerLink extends LinkElement {
-  rel: "tm:submodel";
+  rel: "tm:submodel" | "tm:extends";
   type: "application/tm+json";
-  instanceName: "citylink:regListener";
+  instanceName?: "citylink:regListener";
 }
 
 export interface SupportedControllerLink extends LinkElement {
