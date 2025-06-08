@@ -1,5 +1,5 @@
 import type { EndNode } from "../end-node.ts";
-import type { ThingModel } from "./thing-models.ts";
+import type { ThingModel } from "./thing-model-types.ts";
 
 export type ControllerCompatibleTM = {
   title: string;

@@ -1,16 +1,16 @@
-import type { ThingModel } from "../types/thing-models.ts";
+import type { ThingModel } from "../types/thing-model-types.ts";
 import type { ThingDescription } from "npm:wot-thing-description-types";
 import type {
-  CityLinkPlaceholderMap,
+  EndNodePlaceholderMap,
   ThingDescriptionOpts,
 } from "../types/thing-description-opts.ts";
 import { createLogger } from "common/log";
 
 //HACK: this import is necessary until the eclipse-thingweb/td-tools library is version bumped
 import type { CompositionOptions } from "@eclipse-thingweb/thing-model";
-import { getTmTools } from "./thing-model-helpers.ts";
+import { producePartialTDs } from "./wot-helpers/mod.ts";
 
-export async function produceTD<tmap extends CityLinkPlaceholderMap>(
+export async function produceEndNodeTD<tmap extends EndNodePlaceholderMap>(
   model: ThingModel,
   opts: ThingDescriptionOpts<tmap>,
 ): Promise<ThingDescription> {
@@ -31,7 +31,7 @@ export async function produceTD<tmap extends CityLinkPlaceholderMap>(
     //      It would also allow to cache partial TDs maybe.
   };
 
-  const [partialTD] = await getTmTools().getPartialTDs(model, options);
+  const [partialTD] = await producePartialTDs(model, options);
   const td = await opts.thingDescriptionTransform?.(partialTD) ??
     partialTD! as ThingDescription;
   td.id = `${opts.placeholderMap.CITYLINK_ID}`;

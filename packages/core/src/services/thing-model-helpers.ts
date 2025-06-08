@@ -26,6 +26,10 @@ class modelResolver implements Resolver {
   }
 }
 
-export const getTmTools = () => {
-  return new ThingModelHelpers(new modelResolver());
+export const fetchThingModel = () => {
+  return new ThingModelHelpers(new modelResolver()).fetchModel;
+};
+
+export const producePartialTDs = () => {
+  return new ThingModelHelpers(new modelResolver()).getPartialTDs;
 };

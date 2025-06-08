@@ -20,16 +20,17 @@ export type {
   EndNodeControllerFactory,
 } from "./src/types/end-node-controller.ts";
 
-import { produceTD } from "./src/services/produce-thing-description.ts";
+import * as wotHelpers from "./src/services/wot-helpers/mod.ts";
 import { fetchManifest } from "./src/services/fetch-manifest.ts";
-export const utils = { produceTD, fetchManifest };
+export const utils = { fetchManifest, ...wotHelpers };
+export * from "./src/types/thing-model-types.ts";
 
 export type {
-  CityLinkPlaceholderMap,
+  EndNodePlaceholderMap,
   ThingDescriptionOpts,
 } from "./src/types/thing-description-opts.ts";
 
-export type { ThingModel } from "./src/types/thing-models.ts";
+//TODO: custom types for ThingDescription
 export type { ThingDescription } from "npm:wot-thing-description-types";
 
 // Cache utilities
