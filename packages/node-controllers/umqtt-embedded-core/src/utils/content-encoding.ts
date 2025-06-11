@@ -1,4 +1,4 @@
-import type { AppContentTypes } from "@citylink-edgc/core";
+import type { AppContentTypes } from "@cityling-edgenode/core";
 import { encodeBase64 } from "@std/encoding/base64";
 import { createLogger } from "common/log";
 

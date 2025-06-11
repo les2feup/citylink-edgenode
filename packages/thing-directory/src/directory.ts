@@ -1,5 +1,5 @@
 import { JSONPath } from "jsr:@stdext/json";
-import * as cl from "@citylink-edgc/core";
+import * as cl from "@cityling-edgenode/core";
 import { createLogger } from "common/log";
 import type { JsonValue } from "jsr:@std/json@^1/types";
 

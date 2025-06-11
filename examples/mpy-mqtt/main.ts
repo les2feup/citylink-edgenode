@@ -1,4 +1,4 @@
-import { ThingDirectory } from "@citylink-edgc/thing-directory";
+import { ThingDirectory } from "@cityling-edgenode/thing-directory";
 import { MqttEdgeConnector } from "@citylink-edgc/connector-mqtt";
 import {
   UMQTTCoreControllerFactory,
