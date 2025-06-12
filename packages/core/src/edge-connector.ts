@@ -115,7 +115,7 @@ export abstract class EdgeConnector {
 
     const controller = await factory.produce(node);
     this.controllers.set(node.id, controller);
-    await controller.start(); // Always await as (void) can be awaited safelly
+    await controller.start(); // Always await as (void) can be awaited safely
 
     this.logger?.info(`Node controller launched for node: ${node.id}`);
 

@@ -20,6 +20,7 @@ import { fetchThingModel } from "./services/wot-helpers/mod.ts";
 import { fetchManifest } from "./services/fetch-manifest.ts";
 import {
   isValidApplicationTM,
+  isValidEmbeddedCoreTM,
   isValidNodeControllerTM,
 } from "./services/wot-helpers/validators.ts";
 
@@ -134,7 +135,7 @@ export async function resolveControllerCompatible(
   )!; // the link is guaranteed to exist by the type guard
 
   const embeddedCoreTM = await fetchThingModel(embeddedCoreLink.href);
-  if (!embeddedCoreTM) {
+  if (!isValidEmbeddedCoreTM(embeddedCoreTM)) {
     throw new Error(
       `Failed to fetch embedded core Thing Model from ${embeddedCoreLink.href}`,
     );
