@@ -8,7 +8,7 @@ import type {
   ThingDescriptionOpts,
   ThingModel,
 } from "@citylink-edgc/core";
-import { EndNode, eventBus, EventType } from "@citylink-edgc/core";
+import { EndNode, eventBus } from "@citylink-edgc/core";
 import { createLogger } from "common/log";
 import { mqttTransforms } from "common/td-transforms";
 import mqtt from "mqtt";

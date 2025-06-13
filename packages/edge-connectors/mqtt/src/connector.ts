@@ -2,7 +2,6 @@ import {
   EdgeConnector,
   EndNode,
   eventBus,
-  EventType,
   type ThingDescription,
   type ThingDescriptionOpts,
 } from "@citylink-edgc/core";
