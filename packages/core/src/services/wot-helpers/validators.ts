@@ -98,7 +98,7 @@ function isValidPlatformLink(link: LinkElement): link is PlatformLink {
 
 function isValidManifestLink(link: LinkElement): link is ManifestLink {
   return (
-    link.rel === "citylink:manifest" &&
+    link.rel === "citylink:manifestLink" &&
     (link.type === "application/json" ||
       link.type === "application/citylink.manifest+json")
   );
