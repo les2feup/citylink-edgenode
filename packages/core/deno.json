@@ -1,5 +1,5 @@
 {
-  "name": "@citylink-edgc/core",
+  "name": "@citylink-edgenode/core",
   "version": "0.1.0",
   "tasks": {
     "dev": "deno test --watch"

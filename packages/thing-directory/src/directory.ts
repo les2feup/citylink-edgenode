@@ -1,5 +1,5 @@
 import { JSONPath } from "jsr:@stdext/json";
-import * as cl from "@citylink-edgc/core";
+import * as cl from "@citylink-edgenode/core";
 import { createLogger } from "common/log";
 import type { JsonValue } from "jsr:@std/json@^1/types";
 
@@ -34,7 +34,7 @@ export class ThingDirectory {
    * Starts the Deno HTTP server to serve Thing Directory API requests.
    * @param baseUrl The base URL for the server (defaults to "http://localhost:8000").
    */
-  start(hostname: string = "localhost", port: number = 8000): void {
+  start(hostname: string = "localhost", port: number = 8080): void {
     this.logger.info(
       { ip: hostname, port },
       "Starting ThingDirectory",
@@ -44,12 +44,20 @@ export class ThingDirectory {
     Deno.serve({ hostname, port }, (req: Request): Response => {
       try {
         const url = new URL(req.url);
-        const pathname = url.pathname;
+        const pathname = url.pathname.replace(/\/$/, ""); // Remove trailing slash for consistency
         const method = req.method;
+        this.logger.debug(
+          { method, url, pathname, searchParams: url.searchParams },
+          "Received request",
+        );
 
         // --- /things property (GET /things{?offset,limit,format}) ---
         if (method === "GET" && pathname === "/things") {
-          return this.readThingsProperty(url.searchParams);
+          return this.listThings(url.searchParams);
+        }
+
+        if (method === "GET" && pathname === "/thing-models"){
+          return this.listThingModels(url.searchParams);
         }
 
         // --- /actions/retrieveThing (GET /things/{id}) ---
@@ -57,13 +65,15 @@ export class ThingDirectory {
         const retrieveThingMatch = pathname.match(/^\/things\/(.+)$/);
         if (method === "GET" && retrieveThingMatch) {
           const thingId = retrieveThingMatch[1]; // Extract ID from path
-          return this.retrieveThingAction(thingId);
+          return this.retrieveThing(thingId);
         }
 
         // --- /actions/searchJSONPath (GET /search/jsonpath?query={query}) ---
         if (method === "GET" && pathname === "/search/jsonpath") {
-          return this.searchJSONPathAction(url.searchParams);
+          return this.searchJSONPath(url.searchParams);
         }
+
+        //TODO: --- /events (GET /events) --- subscribe to all events
 
         // --- /events/thingCreated (GET /events/thing_created{?diff}) ---
         if (method === "GET" && pathname === "/events/thing_created") {
@@ -105,6 +115,12 @@ export class ThingDirectory {
     });
   }
 
+  listThingModels(searchParams: URLSearchParams): Response {
+    this.logger.debug("Listing Thing Models");
+
+    const allThingModels: cl.ThingModel[] = cl.CacheService.getThingModelCache().getAll();
+  }
+
   /**
    * Creates a standardized problem+json error response.
    * @param description A human-readable explanation of the error.
@@ -124,7 +140,7 @@ export class ThingDirectory {
    * @param uriVars The URLSearchParams containing 'offset', 'limit', and 'format' variables.
    * @returns A Response containing a JSON array or collection of Thing Descriptions.
    */
-  private readThingsProperty(uriVars: URLSearchParams): Response {
+  private listThings(uriVars: URLSearchParams): Response {
     this.logger.debug("Listing Things");
 
     const allThings: cl.ThingDescription[] = this.connectorInstances.flatMap(
@@ -188,7 +204,7 @@ export class ThingDirectory {
    * @param thingId The ID of the Thing to retrieve from the path.
    * @returns A Response containing the JSON Thing Description, or a 404 if not found.
    */
-  private retrieveThingAction(thingId: string): Response {
+  private retrieveThing(thingId: string): Response {
     this.logger.debug({ thingId }, "Retrieving Thing");
 
     for (const connector of this.connectorInstances) {
@@ -211,7 +227,7 @@ export class ThingDirectory {
    * @param uriVars The URLSearchParams containing the 'query' variable.
    * @returns A Response containing search results or an error.
    */
-  private searchJSONPathAction(uriVars: URLSearchParams): Response {
+  private searchJSONPath(uriVars: URLSearchParams): Response {
     const query = uriVars.get("query");
     this.logger.debug({ query }, "Executing JSONPath search");
 

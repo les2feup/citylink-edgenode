@@ -1,5 +1,5 @@
 {
-  "name": "@citylink-edgc/controller-umqtt-core",
+  "name": "@citylink-edgenode/controller-umqtt-core",
   "version": "0.1.0",
   "exports": "./mod.ts",
   "tasks": {
@@ -13,7 +13,7 @@
     "common/log": "../../common/logging/log.ts",
     "common/end-node-maps": "../../common/end-node-maps/mod.ts",
     "common/td-transforms": "../../common/td-transforms/mod.ts",
-    "@citylink-edgc/core": "../../core/mod.ts",
+    "@citylink-edgenode/core": "../../core/mod.ts",
     "@eclipse-thingweb/thing-model": "../../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
     "mqtt": "npm:mqtt@^5.13.0",
     "zod": "npm:zod@^3.25.42"

@@ -3,10 +3,10 @@
     "dev": "deno run -E -N -S -R --watch=. main.ts"
   },
   "imports": {
-    "@citylink-edgc/core": "../../packages/core/mod.ts",
-    "@citylink-edgc/connector-mqtt": "../../packages/edge-connectors/mqtt/mod.ts",
-    "@citylink-edgc/controller-umqtt-core": "../../packages/node-controllers/umqtt-embedded-core/mod.ts",
-    "@citylink-edgc/thing-directory": "../../packages/thing-directory/mod.ts",
+    "@citylink-edgenode/core": "../../packages/core/mod.ts",
+    "@citylink-edgenode/connector-mqtt": "../../packages/edge-connectors/mqtt/mod.ts",
+    "@citylink-edgenode/controller-umqtt-core": "../../packages/node-controllers/umqtt-embedded-core/mod.ts",
+    "@citylink-edgenode/thing-directory": "../../packages/thing-directory/mod.ts",
     "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
     "@std/encoding": "jsr:@std/encoding@^1.0.10",
     "common/log": "../../packages/common/logging/log.ts",

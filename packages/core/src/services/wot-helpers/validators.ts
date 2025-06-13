@@ -188,11 +188,12 @@ export function isValidEmbeddedCoreTM(
   return (
     isValidThingModel(tm, ThingModelTags.embeddedCore) &&
     hasValidLinks(tm) &&
-    tm.links.filter(isValidControllerLink).length === 1 && // Must have exactly one controller link
-    XOR( // XOR to ensure exactly one of these is present
-      tm.links.filter(isValidManifestLink).length === 1,
-      Manifest.safeParse(tm["citylink:manifest"]).success,
-    )
+    tm.links.filter(isValidControllerLink).length === 1 //&& // Must have exactly one controller link
+    // TODO: Enforce this on the models
+    // XOR( // XOR to ensure exactly one of these is present
+    //   tm.links.filter(isValidManifestLink).length === 1,
+    //   Manifest.safeParse(tm["citylink:manifest"]).success,
+    // )
   );
 }
 

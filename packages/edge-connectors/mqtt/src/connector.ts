@@ -4,7 +4,7 @@ import {
   eventBus,
   type ThingDescription,
   type ThingDescriptionOpts,
-} from "@citylink-edgc/core";
+} from "@citylink-edgenode/core";
 
 import type { Buffer } from "node:buffer";
 

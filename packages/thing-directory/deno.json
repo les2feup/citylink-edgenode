@@ -1,5 +1,5 @@
 {
-  "name": "@citylink-edgc/thing-directory",
+  "name": "@citylink-edgenode/thing-directory",
   "version": "0.1.0",
   "tasks": {
     "dev": "deno test --watch"
@@ -10,6 +10,6 @@
   "imports": {
     "common/log": "../common/logging/log.ts",
     "@eclipse-thingweb/thing-model": "../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
-    "@citylink-edgc/core": "../core/mod.ts"
+    "@citylink-edgenode/core": "../core/mod.ts"
   }
 }

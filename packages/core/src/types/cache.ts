@@ -9,6 +9,19 @@ export interface Cache<K, V> {
    */
   get(key: K): Promise<V | undefined>;
 
+
+  /**
+   * Retrieves all items from the cache as a Map.
+   * * @returns A Promise that resolves to a Map containing all cached items,
+   */
+  getMap(): Promise<ReadonlyMap<K, V>>;
+
+  /**
+   * Retrieves all items from the cache as an array.
+   * @returns A Promise that resolves to an array of all cached items.
+   */
+  getAll(): Promise<ReadonlyArray<V>>;
+
   /**
    * Sets an item in the cache with a specified key.
    * @param key - The key under which to store the item.

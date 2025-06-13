@@ -1,5 +1,5 @@
 {
-  "name": "@citylink-edgc/connector-mqtt",
+  "name": "@citylink-edgenode/connector-mqtt",
   "version": "0.1.0",
   "exports": "./mod.ts",
   "tasks": {
@@ -12,7 +12,7 @@
     "common/end-node-maps": "../../common/end-node-maps/mod.ts",
     "common/td-transforms": "../../common/td-transforms/mod.ts",
     "@types/node": "npm:@types/node@^22.15.29",
-    "@citylink-edgc/core": "../../core/mod.ts",
+    "@citylink-edgenode/core": "../../core/mod.ts",
     "@eclipse-thingweb/thing-model": "../../../third-party/eclipse-thingweb/thing-model/src/thing-model.ts",
     "@std/assert": "jsr:@std/assert@^1.0.13",
     "mqtt": "npm:mqtt@^5.13.0",
