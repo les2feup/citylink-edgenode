@@ -137,7 +137,7 @@ export async function resolveControllerCompatible(
   const embeddedCoreTM = await fetchThingModel(embeddedCoreLink.href);
   if (!isValidEmbeddedCoreTM(embeddedCoreTM)) {
     throw new Error(
-      `Failed to fetch embedded core Thing Model from ${embeddedCoreLink.href}`,
+      `Fetched Embedded Core Thing Model is invalid ${embeddedCoreLink.href}`,
     );
   }
 
