@@ -5,8 +5,6 @@ import {
 } from "@citylink-edgenode/controller-umqtt-core";
 import * as cl from "@citylink-edgenode/core";
 
-//TODO: format all logs with PINO instead of current in-message formmatting
-
 const loadTM = async (path: string): Promise<cl.ThingModel> => {
   const decoder = new TextDecoder("utf-8");
   const file = decoder.decode(await Deno.readFile(path));
