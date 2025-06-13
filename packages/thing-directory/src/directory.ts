@@ -69,7 +69,7 @@ export class ThingDirectory {
 
         // --- /manifests property (GET /manifests{?offset,limit}) ---
         if (method === "GET" && pathname === "/manifests") {
-          return await this.listManifests(url.searchParams);
+          return await this.listManifests(url);
         }
 
         // --- /actions/retrieveThing (GET /things/{id}) ---
@@ -260,7 +260,9 @@ export class ThingDirectory {
     );
   }
 
-  async listManifests(searchParams: URLSearchParams): Promise<Response> {
+  async listManifests(
+    url: URL,
+  ): Promise<Response> {
     this.logger.debug("Listing Manifests");
 
     const allManifestsMap = await cl.CacheService
@@ -270,9 +272,10 @@ export class ThingDirectory {
       allManifestsMap.entries(),
     ).map(
       ([modelTitle, manifest]) => {
+        const base = `${url.protocol}//${url.host}`;
         const modelUrl = new URL(
-          "/thing-models/" + modelTitle,
-          location.href,
+          `/thing-models/${modelTitle}`,
+          base,
         );
         return {
           modelTitle,
@@ -285,7 +288,7 @@ export class ThingDirectory {
     return this.handleListRequestOutput(
       enrichedManifests,
       "manifests",
-      searchParams,
+      url.searchParams,
     );
   }
 
