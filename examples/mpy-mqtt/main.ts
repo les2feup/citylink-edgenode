@@ -1,9 +1,9 @@
-import { ThingDirectory } from "@cityling-edgenode/thing-directory";
-import { MqttEdgeConnector } from "@citylink-edgc/connector-mqtt";
+import { ThingDirectory } from "@citylink-edgenode/thing-directory";
+import { MqttEdgeConnector } from "@citylink-edgenode/connector-mqtt";
 import {
   UMQTTCoreControllerFactory,
-} from "@citylink-edgc/controller-umqtt-core";
-import * as cl from "@citylink-edgc/core";
+} from "@citylink-edgenode/controller-umqtt-core";
+import * as cl from "@citylink-edgenode/core";
 
 //TODO: format all logs with PINO instead of current in-message formmatting
 
