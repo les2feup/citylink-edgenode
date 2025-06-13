@@ -45,7 +45,7 @@
                     },
                     "placeholder": {
                         "type": "object",
-                        "description": "Key-value pairs for additional parameters required for registration.",
+                        "description": "Key-value pairs for additional parameters required for registration."
                     }
                 },
                 "required": [ "tm" ]
