@@ -35,11 +35,20 @@
         "registration": {
             "title": "End Node Registration",
             "description": "Register a new end node with the connector.",
-            "uriVariables": {
-                "nodeID": {
-                    "type": "string",
-                    "description": "Unique identifier for the end node prior to registration."
-                }
+            "input": {
+                "type": "object",
+                "description": "Input for registering an end node with the connector.",
+                "properties": {
+                    "tm": {
+                        "type": "string",
+                        "description": "URL of the Thing Model describing the end node."
+                    },
+                    "placeholder": {
+                        "type": "object",
+                        "description": "Key-value pairs for additional parameters required for registration.",
+                    }
+                },
+                "required": [ "tm" ]
             },
             "forms": [
                 {
@@ -57,12 +66,6 @@
         "response": {
             "title": "End Node Registration Response",
             "description": "Event triggered when an end node registration is acknowledged by the controller.",
-            "uriVariables": {
-                "nodeID": {
-                    "type": "string",
-                    "description": "Unique identifier for the end node prior to registration."
-                }
-            },
             "data": {
                 "oneOf": [
                     {
