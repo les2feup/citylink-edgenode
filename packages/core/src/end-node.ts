@@ -23,6 +23,7 @@ import {
   isValidEmbeddedCoreTM,
   isValidNodeControllerTM,
 } from "./services/wot-helpers/validators.ts";
+import { getAppManifestCache } from "./services/cache-registry.ts";
 
 const logger = createLogger("core", "EndNode");
 
@@ -72,7 +73,7 @@ export class EndNode {
       let manifest = tm["citylink:manifest"];
       if (!manifest) {
         const url = tm.links.find(
-          (link) => link.rel === "citylink:manifest",
+          (link) => link.rel === "citylink:manifestLink",
         )!.href; // earlier type guards ensure this exists
 
         if (!URL.canParse(url)) {
@@ -80,7 +81,10 @@ export class EndNode {
         }
 
         logger.info({ url }, "📦 Fetching manifest");
-        manifest = await fetchManifest(URL.parse(url)!);
+        manifest = await fetchManifest(tm.title, URL.parse(url)!);
+      } else {
+        logger.info("📦 Using manifest from Thing Model");
+        getAppManifestCache().set(tm.title, manifest);
       }
 
       const compatible = await resolveControllerCompatible(tm);

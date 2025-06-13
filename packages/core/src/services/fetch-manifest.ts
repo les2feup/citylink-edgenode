@@ -2,12 +2,13 @@ import { Manifest } from "../types/zod/manifest.ts";
 import { getAppManifestCache } from "./cache-registry.ts";
 
 export async function fetchManifest(
+  modelTitle: string,
   url: URL,
 ): Promise<Manifest> {
   const cache = getAppManifestCache();
 
   try {
-    const cachedManifest = await cache.get(url.toString());
+    const cachedManifest = await cache.get(modelTitle);
     if (cachedManifest) {
       return cachedManifest;
     }
@@ -26,7 +27,7 @@ export async function fetchManifest(
       );
     }
 
-    await cache.set(url.toString(), parsed.data);
+    await cache.set(modelTitle, parsed.data);
     return parsed.data;
   } catch (error) {
     throw new Error(`Error fetching app manifest: ${error}`);

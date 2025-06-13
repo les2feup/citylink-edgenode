@@ -23,7 +23,9 @@ class EventBus {
     const payload = encoder.encode(message);
 
     for (const client of this.clients) {
-      if (client.eventType === eventType) {
+      if (
+        client.eventType === eventType || client.eventType === EventType.all
+      ) {
         client.controller.enqueue(payload);
       }
     }
@@ -57,6 +59,7 @@ export enum EventType {
   created = "thingCreated",
   updated = "thingUpdated",
   deleted = "thingDeleted",
+  all = "allEvents",
 }
 
 // Singleton instance
