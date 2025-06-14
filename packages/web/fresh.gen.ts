@@ -4,20 +4,30 @@
 
 import * as $_404 from "./routes/_404.tsx";
 import * as $_app from "./routes/_app.tsx";
+import * as $_layout from "./routes/_layout.tsx";
 import * as $index from "./routes/index.tsx";
-import * as $things_id_ from "./routes/things/[id].tsx";
-import * as $Counter from "./islands/Counter.tsx";
+import * as $manifests_modelTitle_ from "./routes/manifests/[modelTitle].tsx";
+import * as $manifests_index from "./routes/manifests/index.tsx";
+import * as $thing_models_title_ from "./routes/thing-models/[title].tsx";
+import * as $thing_models_index from "./routes/thing-models/index.tsx";
+import * as $things_thingId_ from "./routes/things/[thingId].tsx";
+import * as $JsonViewer from "./islands/JsonViewer.tsx";
 import type { Manifest } from "$fresh/server.ts";
 
 const manifest = {
   routes: {
     "./routes/_404.tsx": $_404,
     "./routes/_app.tsx": $_app,
+    "./routes/_layout.tsx": $_layout,
     "./routes/index.tsx": $index,
-    "./routes/things/[id].tsx": $things_id_,
+    "./routes/manifests/[modelTitle].tsx": $manifests_modelTitle_,
+    "./routes/manifests/index.tsx": $manifests_index,
+    "./routes/thing-models/[title].tsx": $thing_models_title_,
+    "./routes/thing-models/index.tsx": $thing_models_index,
+    "./routes/things/[thingId].tsx": $things_thingId_,
   },
   islands: {
-    "./islands/Counter.tsx": $Counter,
+    "./islands/JsonViewer.tsx": $JsonViewer,
   },
   baseUrl: import.meta.url,
 } satisfies Manifest;
