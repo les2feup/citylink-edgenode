@@ -327,6 +327,7 @@ export class ThingDirectory {
   }
 
   async retrieveThingModel(title: string): Promise<Response> {
+    title = decodeURIComponent(title);
     this.logger.debug({ title }, "Retrieving Thing Model");
 
     const allThingModels: Readonly<cl.ThingModel[]> = await cl.CacheService
@@ -348,8 +349,8 @@ export class ThingDirectory {
   }
 
   async retrieveManifest(modelTitle: string): Promise<Response> {
+    modelTitle = decodeURIComponent(modelTitle);
     this.logger.debug({ modelTitle }, "Retrieving Manifest");
-
     const manifest = await cl.CacheService.getAppManifestCache().get(
       modelTitle,
     );
