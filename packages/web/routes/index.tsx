@@ -1,19 +1,24 @@
-import { Handlers, PageProps } from "$fresh/server.ts";
+import { defineRoute } from "$fresh/server.ts";
+import { fetchResource } from "../utils/fetch-resource.ts";
 import { EndNodeCard } from "../components/EndNodeCard.tsx";
 import * as cl from "@citylink-edgenode/core";
 
-export const handler: Handlers<cl.ThingDescription[]> = {
-  async GET(_req, ctx) {
-    const res = await fetch("http://localhost:8080/things");
-    const tds = await res.json();
-    return ctx.render(tds);
-  },
-};
+export default defineRoute(async (_req, _ctx) => {
+  //TODO: progressively load things as the user scrolls
+  const endpoint = "http://localhost:8080/things";
+  const things = await fetchResource<cl.ThingDescription[]>(
+    endpoint,
+    (res) => res.json(),
+  );
 
-export default function Home({ data }: PageProps<cl.ThingDescription[]>) {
+  if (!Array.isArray(things)) {
+    console.error("Expected an array of Thing Descriptions", things);
+    return <div>404: Error loading things</div>;
+  }
+
   return (
     <div class="grid gap-4 p-4">
-      {data.map((td) => <EndNodeCard key={td.id} td={td} />)}
+      {things.map((td) => <EndNodeCard key={td.id} td={td} />)}
     </div>
   );
-}
+});

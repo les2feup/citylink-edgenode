@@ -1,13 +1,14 @@
-import { Handlers, PageProps } from "$fresh/server.ts";
+import { defineRoute } from "$fresh/server.ts";
+import { fetchResource } from "../../utils/fetch-resource.ts";
 import JsonViewer from "../../islands/JsonViewer.tsx";
-import { createGetHandler } from "../../utils/get-handler.ts";
+import * as cl from "@citylink-edgenode/core";
 
-export const handler: Handlers = createGetHandler(
-  (ctx) => `http://localhost:8080/things/${ctx.params.thingId}`,
-);
+export default defineRoute(async (_req, ctx) => {
+  //TODO: add a ThingDescription validation function
+  const thing = await fetchResource<cl.ThingDescription>(
+    `http://localhost:8080/things/${ctx.params.thingId}`,
+    (res) => res.json(),
+  );
 
-export default function ThingDescriptionDetails(
-  { data }: PageProps,
-) {
-  return <JsonViewer data={data} />;
-}
+  return <JsonViewer data={thing} />;
+});

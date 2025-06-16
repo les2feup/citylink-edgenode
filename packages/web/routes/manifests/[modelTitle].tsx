@@ -1,14 +1,31 @@
-import { Handlers, PageProps } from "$fresh/server.ts";
-import { createGetHandler } from "../../utils/get-handler.ts";
+import { defineRoute } from "$fresh/server.ts";
+import { fetchResource } from "../../utils/fetch-resource.ts";
 import JsonViewer from "../../islands/JsonViewer.tsx";
+import * as cl from "@citylink-edgenode/core";
 
-export const handler: Handlers = createGetHandler(
-  (ctx) => `http://localhost:8080/manifests/${ctx.params.modelTitle}`,
-);
+function parseManifest(data: unknown) {
+  if (!data) {
+    return null;
+  }
 
-export default function ManifestDetails(
-  { data }: PageProps,
-) {
-  const { data: manifestData } = data;
-  return <JsonViewer data={manifestData} collapsed={3} />;
+  const result = cl.Manifest.safeParse(data);
+  if (!result.success) {
+    console.error("Failed to parse manifest data", {
+      error: result.error,
+      data,
+    });
+    return null;
+  }
+  return result;
 }
+
+export default defineRoute(async (_req, ctx) => {
+  const endpoint = `http://localhost:8080/manifests/${ctx.params.modelTitle}`;
+  const rawData = await fetchResource<JSON>(endpoint, (res) => res.json());
+  const manifest = parseManifest(rawData);
+  if (!manifest) {
+    return <JsonViewer data={null} />;
+  }
+
+  return <JsonViewer data={manifest} collapsed={3} />;
+});
