@@ -211,7 +211,7 @@ export class ThingDirectory {
 
     //TODO: have etag change if the collection changes
     const headers = new Headers();
-    headers.append("Link", `<${urlBase}>; rel="cannonical"; etag="v1"`);
+    headers.append("Content-Type", "application/ld+json");
 
     const next = endIndex < data.length
       ? `/${urlBase}?offset=${endIndex}&limit=${limit}`
@@ -235,18 +235,21 @@ export class ThingDirectory {
       };
 
       if (next) {
-        headers.append("Link", `<${next}>; rel="next"`);
+        headers.append("Link", `<${next}&format=collection>; rel="next"`);
+        headers.append(
+          "Link",
+          `<${urlBase}&format=collection>; rel="cannonical"; etag="v1"`,
+        );
       }
     } else { // Default or 'array'
       responseBody = paginatedThings;
+      if (next) {
+        headers.append("Link", `<${next}>; rel="next"`);
+        headers.append("Link", `<${urlBase}>; rel="cannonical"; etag="v1"`);
+      }
     }
 
-    return new Response(JSON.stringify(responseBody), {
-      headers: {
-        "Content-Type": "application/ld+json",
-        "Link": links.join(", "),
-      },
-    });
+    return new Response(JSON.stringify(responseBody), { headers });
   }
 
   /**
