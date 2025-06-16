@@ -13,6 +13,7 @@ export const handler: Handlers = createGetHandler((ctx) => {
 export default function AllThingModels({ data, url }: PageProps) {
   const offset = Number(url.searchParams.get("offset") ?? "0");
   const limit = Number(url.searchParams.get("limit") ?? "10");
+  const { data: thingModels, headers } = data;
 
   return (
     <div class="space-y-6">
@@ -21,8 +22,9 @@ export default function AllThingModels({ data, url }: PageProps) {
         basePath="/thing-models"
         offset={offset}
         limit={limit}
+        headers={headers}
       />
-      <JsonViewer data={data} collapsed={2} />
+      <JsonViewer data={thingModels} collapsed={2} />
     </div>
   );
 }

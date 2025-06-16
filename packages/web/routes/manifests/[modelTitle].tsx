@@ -9,5 +9,6 @@ export const handler: Handlers = createGetHandler(
 export default function ManifestDetails(
   { data }: PageProps,
 ) {
-  return <JsonViewer data={data} collapsed={3} />;
+  const { data: manifestData } = data;
+  return <JsonViewer data={manifestData} collapsed={3} />;
 }

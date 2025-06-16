@@ -2,11 +2,21 @@ interface Props {
   basePath: string;
   offset: number;
   limit: number;
+  headers?: Record<string, string[]>;
 }
 
-export default function PaginationControls({ basePath, offset, limit }: Props) {
+export default function PaginationControls(
+  { basePath, offset, limit, headers }: Props,
+) {
   const newOffsetUrl = (delta: number) =>
     `${basePath}?offset=${Math.max(offset + delta, 0)}&limit=${limit}`;
+
+  const hasNext = headers && headers["link"] && headers["link"].length > 0 &&
+    headers["link"].some((link) => {
+      link.includes('rel="next"');
+    });
+
+  const hasPrev = offset > 0;
 
   return (
     <div class="space-y-4">
@@ -29,14 +39,25 @@ export default function PaginationControls({ basePath, offset, limit }: Props) {
 
       <div class="flex justify-between">
         <a
-          href={newOffsetUrl(-limit)}
-          class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+          href={hasPrev ? newOffsetUrl(-limit) : "#"}
+          class={`px-4 py-2 rounded ${
+            hasPrev
+              ? "bg-gray-200 hover:bg-gray-300"
+              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+          }`}
+          aria-disabled={!hasPrev}
         >
           Previous
         </a>
+
         <a
-          href={newOffsetUrl(limit)}
-          class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+          href={hasNext ? newOffsetUrl(limit) : "#"}
+          class={`px-4 py-2 rounded ${
+            hasNext
+              ? "bg-gray-200 hover:bg-gray-300"
+              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+          }`}
+          aria-disabled={!hasNext}
         >
           Next
         </a>

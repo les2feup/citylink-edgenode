@@ -9,5 +9,6 @@ export const handler: Handlers = createGetHandler(
 export default function ThingModelDetails(
   { data }: PageProps,
 ) {
-  return <JsonViewer data={data} />;
+  const { data: thingModelData } = data;
+  return <JsonViewer data={thingModelData} />;
 }

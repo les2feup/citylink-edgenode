@@ -15,14 +15,23 @@ export function createGetHandler<T>(
       try {
         const res = await fetch(url);
         if (!res.ok) return ctx.renderNotFound();
-        const json = await res.json();
+        const data = await res.json();
+
         if (
-          json == null ||
-          (typeof json === "object" && Object.keys(json).length === 0)
+          data == null ||
+          (typeof data === "object" && Object.keys(data).length === 0)
         ) {
           return ctx.renderNotFound();
         }
-        return ctx.render(json as T);
+
+        // Collect headers with possible duplicates
+        const headers: Record<string, string[]> = {};
+        for (const [key, value] of res.headers) {
+          if (!headers[key]) headers[key] = [];
+          headers[key].push(value);
+        }
+
+        return ctx.render({ data, headers } as T);
       } catch (err) {
         console.error("[fetch error]", err);
         return new Response("Internal Server Error", { status: 500 });

@@ -10,9 +10,10 @@ export const handler: Handlers = createGetHandler((ctx) => {
   return `http://localhost:8080/manifests?offset=${offset}&limit=${limit}`;
 });
 
-export default function AllThingModels({ data, url }: PageProps) {
+export default function AllManifests({ data, url }: PageProps) {
   const offset = Number(url.searchParams.get("offset") ?? "0");
   const limit = Number(url.searchParams.get("limit") ?? "10");
+  const { data: manifests, headers } = data;
 
   return (
     <div class="space-y-6">
@@ -21,9 +22,9 @@ export default function AllThingModels({ data, url }: PageProps) {
         basePath="/manifests"
         offset={offset}
         limit={limit}
+        headers={headers}
       />
-      <JsonViewer data={data} collapsed={3} />
+      <JsonViewer data={manifests} collapsed={3} />
     </div>
   );
 }
-
