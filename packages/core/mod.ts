@@ -5,12 +5,8 @@
 export { EndNode } from "./src/end-node.ts";
 export { EdgeConnector } from "./src/edge-connector.ts";
 
-export type {
-  AppContentTypes,
-  Manifest,
-  ManifestSourceItem,
-  ManifestSourceList,
-} from "./src/types/zod/manifest.ts";
+export * from "./src/types/zod/manifest.ts";
+export type * from "./src/types/zod/manifest.ts";
 
 export type { SourceFile } from "./src/types/app-source.ts";
 
