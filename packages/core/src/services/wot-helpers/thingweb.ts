@@ -22,7 +22,8 @@ class modelResolver implements Resolver {
       }
 
       const model = await response.json();
-      await cache.set(uri, model);
+      // set a deep copy of the model in cache
+      await cache.set(uri, structuredClone(model));
 
       return model;
     } catch (error) {

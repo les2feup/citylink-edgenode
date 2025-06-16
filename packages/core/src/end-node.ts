@@ -8,7 +8,7 @@ import type {
   DefaultPlaceholderMap,
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
-import type { ApplicationTM, ThingModel } from "./types/thing-model-types.ts";
+import type { ApplicationTM, ThingModel, WoTThingModel } from "./types/thing-model-types.ts";
 import type { ControllerCompatibleTM } from "./types/end-node-controller.ts";
 import type { SourceFile } from "./types/app-source.ts";
 import {
@@ -156,7 +156,7 @@ export async function resolveControllerCompatible(
     );
   }
   const title = controllerTM.title;
-  const version = ThingModelHelpers.getModelVersion(controllerTM);
+  const version = ThingModelHelpers.getModelVersion(controllerTM as WoTThingModel);
   if (!version) { // This should not happen due to earlier type guards
     throw new Error(
       `Controller Thing Model at ${controllerLink.href} is missing version information`,

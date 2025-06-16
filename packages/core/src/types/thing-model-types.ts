@@ -1,6 +1,7 @@
 import type {
   BaseLinkElement,
   ThingModel as WoTTM,
+  TmTypeDeclaration,
 } from "npm:wot-thing-model-types";
 import type { Manifest } from "./zod/manifest.ts";
 
@@ -60,13 +61,16 @@ export type ThingModelVersion = string | {
 };
 export type ThingModelTitle = Brand<string, "TMTitle">;
 
+export type WoTThingModel = WoTTM
+
 // Non-nullable Title, version and stricter context
-export interface ThingModel extends WoTTM {
+export interface ThingModel extends Omit<WoTThingModel, "@context"> {
   "@context": ThingContext;
+  "@type": TmTypeDeclaration;
   title: ThingModelTitle;
   version: ThingModelVersion;
   "citylink:manifest"?: Manifest;
-}
+};
 
 export interface LinkedThingModel extends ThingModel {
   links: LinkElement[];

@@ -90,6 +90,16 @@ export class ThingDirectory {
           return await this.retrieveThingModel(retrieveThingModelMatch[1]);
         }
 
+        // --- /actions/retrieveThingModel (GET /thing-models/{title}) ---
+        // Using a regex to match /thing-models/{title} paths
+        // This assumes title is a unique identifier for Thing Models.
+        const retrieveManifestMatch = pathname.match(
+          /^\/manifests\/(.+)$/,
+        );
+        if (method === "GET" && retrieveManifestMatch) {
+          return await this.retrieveManifest(retrieveManifestMatch[1]);
+        }
+
         // --- /actions/adaptEndNode (POST /adaptation/{id}) ---
         // Using a regex to match /adaptation/{id} paths
         const adaptationMatch = pathname.match(/^\/adaptation\/(.+)$/);
@@ -329,6 +339,7 @@ export class ThingDirectory {
   }
 
   async retrieveThingModel(title: string): Promise<Response> {
+    title = decodeURIComponent(title);
     this.logger.debug({ title }, "Retrieving Thing Model");
 
     const allThingModels: Readonly<cl.ThingModel[]> = await cl.CacheService
@@ -346,6 +357,26 @@ export class ThingDirectory {
     this.logger.debug({ title }, "Retrieved Thing Model");
     return new Response(JSON.stringify(thingModel), {
       headers: { "Content-Type": "application/tm+json" },
+    });
+  }
+
+  async retrieveManifest(modelTitle: string): Promise<Response> {
+    modelTitle = decodeURIComponent(modelTitle);
+    this.logger.debug({ modelTitle }, "Retrieving Manifest");
+    const manifest = await cl.CacheService.getAppManifestCache().get(
+      modelTitle,
+    );
+
+    if (!manifest) {
+      this.logger.warn({ modelTitle }, "Manifest not found");
+      return this.errorResponse(
+        `Manifest for model title ${modelTitle} not found`,
+        404,
+      );
+    }
+    this.logger.debug({ modelTitle }, "Retrieved Manifest");
+    return new Response(JSON.stringify(manifest), {
+      headers: { "Content-Type": "application/manifest+json" },
     });
   }
 
