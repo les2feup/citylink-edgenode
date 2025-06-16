@@ -198,7 +198,18 @@ export class ThingDirectory {
     const paginatedThings = data.slice(startIndex, endIndex);
 
     let responseBody;
-    const contentType = "application/ld+json"; // According to Thing Model specification
+
+    //TODO: have etag change if the collection changes
+    const headers = new Headers();
+    headers.append("Link", `<${urlBase}>; rel="cannonical"; etag="v1"`);
+
+    const next = endIndex < data.length
+      ? `/${urlBase}?offset=${endIndex}&limit=${limit}`
+      : null;
+
+    const prev = startIndex > 0
+      ? `/${urlBase}?offset=${Math.max(0, startIndex - limit)}&limit=${limit}`
+      : null;
 
     if (format === "collection" && urlBase === "things") {
       // Example of a collection format (adjust as per actual collection spec)
@@ -209,21 +220,22 @@ export class ThingDirectory {
         "members": paginatedThings,
         "@id":
           `/${urlBase}?offset=${startIndex}&limit=${limit},&format=collection`,
-        "@next": endIndex < data.length
-          ? `/${urlBase}?offset=${endIndex}&limit=${limit}&format=collection`
-          : null,
-        "@prev": startIndex > 0
-          ? `/${urlBase}?offset=${
-            Math.max(0, startIndex - limit)
-          }&limit=${limit}&format=collection`
-          : null,
+        "@next": next ? `${next}&format=collection` : null,
+        "@prev": prev ? `${prev}&format=collection` : null,
       };
+
+      if (next) {
+        headers.append("Link", `<${next}>; rel="next"`);
+      }
     } else { // Default or 'array'
       responseBody = paginatedThings;
     }
 
     return new Response(JSON.stringify(responseBody), {
-      headers: { "Content-Type": contentType },
+      headers: {
+        "Content-Type": "application/ld+json",
+        "Link": links.join(", "),
+      },
     });
   }
 
