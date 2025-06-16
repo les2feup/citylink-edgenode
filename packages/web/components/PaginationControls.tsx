@@ -1,8 +1,8 @@
-interface Props {
+export interface Props {
   basePath: string;
   offset: number;
   limit: number;
-  headers?: Record<string, string[]>;
+  headers?: Headers;
 }
 
 export default function PaginationControls(
@@ -11,11 +11,7 @@ export default function PaginationControls(
   const newOffsetUrl = (delta: number) =>
     `${basePath}?offset=${Math.max(offset + delta, 0)}&limit=${limit}`;
 
-  const hasNext = headers && headers["link"] && headers["link"].length > 0 &&
-    headers["link"].some((link) => {
-      link.includes('rel="next"');
-    });
-
+  const hasNext = headers?.get("Link")?.includes('rel="next"') ?? false;
   const hasPrev = offset > 0;
 
   return (

@@ -3,7 +3,7 @@ import { useEffect, useState } from "preact/hooks";
 type Props = {
   title?: string;
   collapsed?: number;
-  data: Record<string, unknown> | Array<Record<string, unknown>>;
+  data: unknown;
 };
 
 export default function JsonViewer({ collapsed, data }: Props) {
@@ -28,10 +28,10 @@ export default function JsonViewer({ collapsed, data }: Props) {
     );
   }
 
-  if (!data || typeof data !== "object") {
+  if (!data) {
     return (
       <div class="p-8 text-center text-red-600">
-        <h1 class="text-2xl font-semibold">Not found or failed to load.</h1>
+        <h1 class="text-2xl font-semibold">404: Not found</h1>
       </div>
     );
   }
