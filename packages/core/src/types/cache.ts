@@ -9,7 +9,6 @@ export interface Cache<K, V> {
    */
   get(key: K): Promise<V | undefined>;
 
-
   /**
    * Retrieves all items from the cache as a Map.
    * * @returns A Promise that resolves to a Map containing all cached items,
@@ -33,3 +32,4 @@ export interface Cache<K, V> {
 export interface AppManifestCache extends Cache<string, Manifest> {}
 export interface AppContentCache extends Cache<string, AppContentTypes> {}
 export interface ThingModelCache extends Cache<string, ThingModel> {}
+export interface AffordanceCache extends Cache<string, unknown> {}

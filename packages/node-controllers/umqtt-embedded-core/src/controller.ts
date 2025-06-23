@@ -223,6 +223,8 @@ export class UMQTTCoreController implements EndNodeController {
         "📩 New message received",
       );
 
+      this.node.cacheAffordance()
+
       if (affordanceNamespace === "core") {
         this.handleCoreMessage(affordanceType, affordanceName, message);
       }

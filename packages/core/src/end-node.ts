@@ -8,7 +8,11 @@ import type {
   DefaultPlaceholderMap,
   ThingDescriptionOpts,
 } from "./types/thing-description-opts.ts";
-import type { ApplicationTM, ThingModel, WoTThingModel } from "./types/thing-model-types.ts";
+import type {
+  ApplicationTM,
+  ThingModel,
+  WoTThingModel,
+} from "./types/thing-model-types.ts";
 import type { ControllerCompatibleTM } from "./types/end-node-controller.ts";
 import type { SourceFile } from "./types/app-source.ts";
 import {
@@ -23,11 +27,20 @@ import {
   isValidEmbeddedCoreTM,
   isValidNodeControllerTM,
 } from "./services/wot-helpers/validators.ts";
-import { getAppManifestCache } from "./services/cache-registry.ts";
+import {
+  getAffordanceCacheFactory,
+  getAppManifestCache,
+} from "./services/cache-registry.ts";
+import type { AffordanceCache } from "./types/cache.ts";
 
 const logger = createLogger("core", "EndNode");
 
 export class EndNode {
+  //TODO: Hide these caches from the public API
+  propertyCache?: AffordanceCache;
+  actionCache?: AffordanceCache;
+  eventCache?: AffordanceCache;
+
   constructor(
     private readonly uuid: string,
     private readonly nodeManifest: Manifest,
@@ -94,7 +107,24 @@ export class EndNode {
       };
       const td = await produceTD(tm, opts);
       const uuid = td.id!.split("urn:uuid:")[1];
-      return new EndNode(uuid, manifest, td, compatible);
+
+      const node = new EndNode(uuid, manifest, td, compatible);
+
+      const cacheFactory = getAffordanceCacheFactory();
+      node.propertyCache = await cacheFactory();
+      node.actionCache = await cacheFactory();
+      node.eventCache = await cacheFactory();
+
+      logger.info(
+        { id: node.id, title: tm.title },
+        "✅ EndNode instantiated successfully",
+      );
+
+      logger.debug({
+        caches: node.propertyCache && node.actionCache && node.eventCache,
+      }, "Caches initialized");
+
+      return node;
     } catch (error) {
       throw new Error(`❌EndNode instantiation failed: ${error}`);
     }
@@ -129,6 +159,50 @@ export class EndNode {
   get controllerCompatible(): Readonly<ControllerCompatibleTM> {
     return this.compatible;
   }
+
+  getCache(type: "property" | "action" | "event"): AffordanceCache | null {
+    let cache: AffordanceCache | undefined;
+    switch (type) {
+      case "property":
+        cache = this.propertyCache;
+        break;
+      case "action":
+        cache = this.actionCache;
+        break;
+      case "event":
+        cache = this.eventCache;
+        break;
+      default:
+    }
+
+    if (!cache) {
+      logger.warn(
+        { type, cache },
+        `No cache available for type: ${type} or cache undefined, returning null`,
+      );
+      return null;
+    }
+    return cache;
+  }
+
+  //TODO: handle errors
+  async cacheAffordance<Key extends string>(
+    type: "property" | "action" | "event",
+    key: Key,
+    value: unknown,
+  ): Promise<void> {
+    const cache = this.getCache(type);
+    await cache?.set(key, value);
+  }
+
+  //TODO: handle errors
+  async getAffordance<Key extends string>(
+    type: "property" | "action" | "event",
+    key: Key,
+  ): Promise<unknown | undefined> {
+    const cache = this.getCache(type);
+    return await cache?.get(key);
+  }
 }
 
 export async function resolveControllerCompatible(
@@ -156,7 +230,9 @@ export async function resolveControllerCompatible(
     );
   }
   const title = controllerTM.title;
-  const version = ThingModelHelpers.getModelVersion(controllerTM as WoTThingModel);
+  const version = ThingModelHelpers.getModelVersion(
+    controllerTM as WoTThingModel,
+  );
   if (!version) { // This should not happen due to earlier type guards
     throw new Error(
       `Controller Thing Model at ${controllerLink.href} is missing version information`,

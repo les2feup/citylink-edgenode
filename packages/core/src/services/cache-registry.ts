@@ -1,4 +1,5 @@
 import type {
+  AffordanceCache,
   AppContentCache,
   AppManifestCache,
   ThingModelCache,
@@ -51,14 +52,40 @@ export function setAppContentCache(cache: AppContentCache): void {
   appContentCache = cache;
 }
 
-/// Utility Functions
+/// Node State Cache
 
+type AffordanceCacheFactory = () => AffordanceCache | Promise<AffordanceCache>;
+
+let affordanceCacheFactory: AffordanceCacheFactory = () =>
+  new InMemoryCache<string, unknown>();
+
+export function getAffordanceCacheFactory(): AffordanceCacheFactory {
+  return affordanceCacheFactory;
+}
+
+export function setAffordanceCacheFactory(
+  factory: AffordanceCacheFactory,
+): void {
+  affordanceCacheFactory = factory;
+}
+
+/// Utility Functions
+//
 export function configure(
-  appManifestCache?: AppManifestCache,
-  appContentCache?: AppContentCache,
-  thingModelCache?: ThingModelCache,
+  {
+    appManifestCache,
+    appContentCache,
+    thingModelCache,
+    nodeStateCacheFactory,
+  }: {
+    appManifestCache?: AppManifestCache;
+    appContentCache?: AppContentCache;
+    thingModelCache?: ThingModelCache;
+    nodeStateCacheFactory?: AffordanceCacheFactory;
+  },
 ): void {
   if (appManifestCache) setAppManifestCache(appManifestCache);
   if (appContentCache) setAppContentCache(appContentCache);
   if (thingModelCache) setThingModelCache(thingModelCache);
+  if (nodeStateCacheFactory) setAffordanceCacheFactory(nodeStateCacheFactory);
 }
