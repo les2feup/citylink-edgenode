@@ -26,6 +26,9 @@ import type {
 import type { ThingModel as WoTTM } from "npm:wot-thing-model-types";
 import { ThingModelHelpers } from "@eclipse-thingweb/thing-model";
 import { Manifest } from "../../types/zod/manifest.ts";
+import { createLogger } from "common/log";
+
+const logger = createLogger("core", "ThingModelValidators");
 
 function XOR(
   condition1: boolean,
@@ -40,7 +43,10 @@ function isValidThingContext(value: unknown): value is ThingContext {
   }
 
   if (Array.isArray(value)) {
-    if (value.length === 0) return false;
+    if (value.length === 0) {
+      logger.error("Invalid @context in Thing Model: empty array");
+      return false;
+    }
 
     return value.every(
       (item) =>
@@ -51,6 +57,7 @@ function isValidThingContext(value: unknown): value is ThingContext {
     );
   }
 
+  logger.error("Invalid @context in Thing Model");
   return false;
 }
 
@@ -66,18 +73,25 @@ function isStringRecord(value: unknown): value is Record<string, unknown> {
 function isValidThingModelVersion(
   value: unknown,
 ): value is ThingModelVersion {
-  return (
-    typeof value === "string" ||
+  const valid = typeof value === "string" ||
     (
       isStringRecord(value) &&
       "model" in value &&
       typeof value.model === "string"
-    )
-  );
+    );
+
+  if (!valid) {
+    logger.error("Invalid Thing Model version");
+  }
+  return valid;
 }
 
 function isValidWoTThingModel(tm: unknown): tm is WoTTM {
-  return ThingModelHelpers.isThingModel(tm);
+  const valid = ThingModelHelpers.isThingModel(tm);
+  if (!valid) {
+    logger.error("Invalid WoT Thing Model", tm);
+  }
+  return valid;
 }
 
 function isValidEmbeddedCoreLink(link: LinkElement): link is EmbeddedCoreLink {
@@ -163,17 +177,22 @@ export function isValidThingModel(
   tm: unknown,
   tag?: ThingModelTags[keyof ThingModelTags],
 ): tm is ThingModel {
-  return (
-    isValidWoTThingModel(tm) &&
+  logger.debug("validating Thing Model");
+  const valid = isValidWoTThingModel(tm) &&
       isValidThingContext(tm["@context"]) &&
       isValidThingModelVersion(tm.version) &&
       typeof tm.title === "string" &&
       tm.title.length > 0 &&
       tag !== undefined
-      ? (Array.isArray(tm["@type"]) &&
-        tm["@type"].includes(`citylink:${tag}`))
-      : true
-  );
+    ? (Array.isArray(tm["@type"]) &&
+      tm["@type"].includes(`citylink:${tag}`))
+    : true;
+
+  if (!valid) {
+    logger.error("Invalid CityLink Thing Model", tm);
+  }
+
+  return valid;
 }
 
 export function isValidPlatformTM(tm: unknown): tm is PlatformTM {
