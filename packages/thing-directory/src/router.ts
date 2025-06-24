@@ -83,7 +83,7 @@ export async function handleRequest(
     return searchJSONPath(connectors, url.searchParams);
   }
 
-  //TODO: --- /events (GET /events) --- subscribe to all events
+  // --- /events (GET /events{?diff}) ---
   if (method === "GET" && pathname === "/events") {
     return handleSSEConnection(
       "allEvents",
