@@ -1,5 +1,6 @@
 import { createLogger } from "common/log";
 import { handleRequest } from "./router.ts";
+import { withCors } from "./utils/cors.ts";
 import type { EdgeConnector } from "@citylink-edgenode/core";
 
 export class ThingDirectory {
@@ -18,7 +19,15 @@ export class ThingDirectory {
     this.logger.info({ hostname, port }, "Starting CityLink Directory");
     Deno.serve(
       { hostname, port },
-      (req) => handleRequest(req, this.connectorInstances),
+      async (req) => {
+        // Handle CORS preflight requests
+        if (req.method === "OPTIONS") {
+          return withCors(new Response(null, { status: 204 }));
+        }
+
+        const response = await handleRequest(req, this.connectorInstances);
+        return withCors(response);
+      },
     );
   }
 }
