@@ -1,4 +1,4 @@
-import { CacheService } from "@citylink-edgenode/core";
+import { CacheService, type ThingModel } from "@citylink-edgenode/core";
 import { createLogger } from "common/log";
 import { errorResponse } from "../utils/error-response.ts";
 
@@ -8,8 +8,10 @@ export async function retrieveThingModel(title: string): Promise<Response> {
   title = decodeURIComponent(title);
   logger.debug({ title }, "Retrieving Thing Model");
 
-  const thingModel = await CacheService
-    .getThingModelCache().get(title);
+  const allThingModels: Readonly<ThingModel[]> = await CacheService
+    .getThingModelCache().getAll();
+
+  const thingModel = allThingModels.find((tm) => tm.title === title);
   if (!thingModel) {
     logger.warn({ title }, "Thing Model not found");
     return errorResponse(
