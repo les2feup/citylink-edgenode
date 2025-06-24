@@ -8,7 +8,7 @@ import type {
   ThingDescriptionOpts,
   ThingModel,
 } from "@citylink-edgenode/core";
-import { EndNode, eventBus } from "@citylink-edgenode/core";
+import { AffordanceTag, EndNode, eventBus } from "@citylink-edgenode/core";
 import { createLogger } from "common/log";
 import { mqttTransforms } from "common/td-transforms";
 import mqtt from "mqtt";
@@ -223,7 +223,11 @@ export class UMQTTCoreController implements EndNodeController {
         "📩 New message received",
       );
 
-      this.node.cacheAffordance()
+      this.node.cacheAffordance(
+        affordanceType,
+        `${affordanceNamespace}/${affordanceName}`,
+        message.toString(),
+      );
 
       if (affordanceNamespace === "core") {
         this.handleCoreMessage(affordanceType, affordanceName, message);

@@ -8,6 +8,9 @@ export { EdgeConnector } from "./src/edge-connector.ts";
 export * from "./src/types/zod/manifest.ts";
 export type * from "./src/types/zod/manifest.ts";
 
+export * from "./src/types/zod/affordance-tag.ts";
+export type * from "./src/types/zod/affordance-tag.ts";
+
 export type { SourceFile } from "./src/types/app-source.ts";
 
 export type {

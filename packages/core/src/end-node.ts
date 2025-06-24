@@ -32,6 +32,7 @@ import {
   getAppManifestCache,
 } from "./services/cache-registry.ts";
 import type { AffordanceCache } from "./types/cache.ts";
+import { AffordanceTag } from "./types/zod/affordance-tag.ts";
 
 const logger = createLogger("core", "EndNode");
 
@@ -160,7 +161,7 @@ export class EndNode {
     return this.compatible;
   }
 
-  getCache(type: "property" | "action" | "event"): AffordanceCache | null {
+  getCache(type: AffordanceTag): AffordanceCache | null {
     let cache: AffordanceCache | undefined;
     switch (type) {
       case "property":
@@ -187,20 +188,22 @@ export class EndNode {
 
   //TODO: handle errors
   async cacheAffordance<Key extends string>(
-    type: "property" | "action" | "event",
+    type: AffordanceTag | string,
     key: Key,
     value: unknown,
   ): Promise<void> {
-    const cache = this.getCache(type);
+    const affType = AffordanceTag.parse(type);
+    const cache = this.getCache(affType);
     await cache?.set(key, value);
   }
 
   //TODO: handle errors
   async getAffordance<Key extends string>(
-    type: "property" | "action" | "event",
+    type: AffordanceTag | string,
     key: Key,
   ): Promise<unknown | undefined> {
-    const cache = this.getCache(type);
+    const affType = AffordanceTag.parse(type);
+    const cache = this.getCache(affType);
     return await cache?.get(key);
   }
 }
