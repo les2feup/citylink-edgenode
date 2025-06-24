@@ -8,7 +8,7 @@ import type {
   ThingDescriptionOpts,
   ThingModel,
 } from "@citylink-edgenode/core";
-import { AffordanceTag, EndNode, eventBus } from "@citylink-edgenode/core";
+import { EndNode, eventBus } from "@citylink-edgenode/core";
 import { createLogger } from "common/log";
 import { mqttTransforms } from "common/td-transforms";
 import mqtt from "mqtt";
@@ -268,6 +268,8 @@ export class UMQTTCoreController implements EndNodeController {
       return Promise.reject(new Error("In progress"));
     }
 
+    this.logger?.info("🔄 Starting adaptation procedure...");
+
     //NOTE: merging "placeholder" field from the manifest
     //into the placeholderMap is handled in EndNode.from()
     const placeholderMap = endNodeMaps.mqtt.create(
@@ -289,11 +291,17 @@ export class UMQTTCoreController implements EndNodeController {
     // this.prevNodeConfig = this.node;
 
     //TODO: verify compatibility of new TM
+    this.logger?.info("Generating new EndNode from Thing Model...");
     this.node = await EndNode.from(tm, opts);
+    this.logger?.info(
+      { id: this.node.id, title: this.node.thingDescription.title },
+      "✅ New EndNode instantiated successfully",
+    );
 
     return new Promise((resolve, reject) => {
       this.logger?.info("🔄 Starting adaptation procedure...");
       this.adaptationInitPromise = { resolve, reject };
+      //TODO: send the TM of the new URL to the end node
       this.invokeAction("citylink:embeddedCore_OTAUInit").catch((err) => {
         this.logger?.error(
           { error: err },
