@@ -24,6 +24,12 @@ export function EndNodeCard({ td }: { td: cl.ThingDescription }) {
         >
           Manifest
         </a>
+        <a
+          href={`/adaptation/${td.id}?title=${td.title}`}
+          class="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
+        >
+          Adapt End Node
+        </a>
       </div>
     </div>
   );

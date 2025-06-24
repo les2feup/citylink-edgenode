@@ -5,12 +5,15 @@
 import * as $_404 from "./routes/_404.tsx";
 import * as $_app from "./routes/_app.tsx";
 import * as $_layout from "./routes/_layout.tsx";
+import * as $adaptation_nodeID_ from "./routes/adaptation/[nodeID].tsx";
 import * as $index from "./routes/index.tsx";
 import * as $manifests_modelTitle_ from "./routes/manifests/[modelTitle].tsx";
 import * as $manifests_index from "./routes/manifests/index.tsx";
 import * as $thing_models_title_ from "./routes/thing-models/[title].tsx";
 import * as $thing_models_index from "./routes/thing-models/index.tsx";
 import * as $things_thingId_ from "./routes/things/[thingId].tsx";
+import * as $AdaptationForm from "./islands/AdaptationForm.tsx";
+import * as $JsonEditor from "./islands/JsonEditor.tsx";
 import * as $JsonViewer from "./islands/JsonViewer.tsx";
 import type { Manifest } from "$fresh/server.ts";
 
@@ -19,6 +22,7 @@ const manifest = {
     "./routes/_404.tsx": $_404,
     "./routes/_app.tsx": $_app,
     "./routes/_layout.tsx": $_layout,
+    "./routes/adaptation/[nodeID].tsx": $adaptation_nodeID_,
     "./routes/index.tsx": $index,
     "./routes/manifests/[modelTitle].tsx": $manifests_modelTitle_,
     "./routes/manifests/index.tsx": $manifests_index,
@@ -27,6 +31,8 @@ const manifest = {
     "./routes/things/[thingId].tsx": $things_thingId_,
   },
   islands: {
+    "./islands/AdaptationForm.tsx": $AdaptationForm,
+    "./islands/JsonEditor.tsx": $JsonEditor,
     "./islands/JsonViewer.tsx": $JsonViewer,
   },
   baseUrl: import.meta.url,

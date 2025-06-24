@@ -19,7 +19,6 @@ export default function Layout({ Component }: LayoutProps) {
               <a href="/" class="mr-4 hover:underline">Home</a>
               <a href="/thing-models" class="mr-4 hover:underline">All Thing Models</a>
               <a href="/manifests" class="mr-4 hover:underline">All Manifests</a>
-              <a href="/adaptation" class="mr-4 hover:underline">End Node Adaptation</a>
             </nav>
           </div>
         </header>
