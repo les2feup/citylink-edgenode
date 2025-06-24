@@ -9,7 +9,7 @@ export async function startAdaptation(
   thingId: string,
   tm: URL | unknown,
 ): Promise<Response> {
-  logger.debug({ thingId, tm }, "Starting end node adaptation");
+  logger.debug({ thingId }, "Adaptation invoked");
 
   // Validate the Thing ID and Thing Model
   if (!thingId || !tm) {
@@ -19,14 +19,17 @@ export async function startAdaptation(
     );
   }
 
+  logger.debug({ thingId }, "Validating inputs");
+
   // Find the EdgeConnector for the given Thing ID
   const connector = connectors.find((ec) =>
     ec.getRegisteredNodes().some((n) =>
-      n.thingDescription.id === thingId || n.id === thingId
+      n.thingDescription.id === thingId || n.id === thingId //TODO: remove double check
     )
   );
 
   if (!connector) {
+    logger.warn({ thingId }, "No EdgeConnector found for Thing ID");
     return errorResponse(
       `Thing ID ${thingId} registered with any EdgeConnector`,
       404,
@@ -34,7 +37,8 @@ export async function startAdaptation(
   }
 
   // Validate the Thing Model
-  if (!(tm instanceof URL) || !clUtils.isValidThingModel(tm)) {
+  if (!(tm instanceof URL) && !clUtils.isValidThingModel(tm)) {
+    logger.error("Bad request: Invalid input. Not Thing Model or URL.");
     return errorResponse(
       "Bad request: Invalid input. Not Thing Model or URL.",
       400,
@@ -43,6 +47,7 @@ export async function startAdaptation(
 
   // Start the adaptation process (is a placeholder, actual implementation needed)
   try {
+    logger.debug({ thingId }, "Invoking connector to start adaptation");
     await connector.startNodeAdaptation(thingId, tm);
     return new Response(
       `Adaptation started for Thing ID ${thingId} with model ${tm}`,
