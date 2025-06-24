@@ -164,25 +164,22 @@ export class EndNode {
   getCache(type: AffordanceTag): AffordanceCache | null {
     let cache: AffordanceCache | undefined;
     switch (type) {
-      case "property":
+      case "properties":
         cache = this.propertyCache;
         break;
-      case "action":
+      case "actions":
         cache = this.actionCache;
         break;
-      case "event":
+      case "events":
         cache = this.eventCache;
         break;
       default:
     }
 
     if (!cache) {
-      logger.warn(
-        { type, cache },
-        `No cache available for type: ${type} or cache undefined, returning null`,
-      );
       return null;
     }
+
     return cache;
   }
 
