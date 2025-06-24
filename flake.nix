@@ -2,7 +2,7 @@
   description = "Deno & MQTT devshell";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/d12b3ccedb24c8a0e31982001eb4ca1240f3ac7b"; # For cached deno 2.3.5
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
