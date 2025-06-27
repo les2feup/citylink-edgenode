@@ -1,4 +1,4 @@
-import { type EdgeConnector, utils as clUtils } from "@citylink-edgenode/core";
+import { type EdgeConnector, isValidThingModel } from "@citylink-edgenode/core";
 import { createLogger } from "common/log";
 import { errorResponse } from "../utils/error-response.ts";
 
@@ -37,7 +37,7 @@ export async function startAdaptation(
   }
 
   // Validate the Thing Model
-  if (!(tm instanceof URL) && !clUtils.isValidThingModel(tm)) {
+  if (!(tm instanceof URL) && !isValidThingModel(tm)) {
     logger.error("Bad request: Invalid input. Not Thing Model or URL.");
     return errorResponse(
       "Bad request: Invalid input. Not Thing Model or URL.",

@@ -19,10 +19,8 @@ export type {
   EndNodeControllerFactory,
 } from "./src/types/end-node-controller.ts";
 
-import * as wotHelpers from "./src/services/wot-helpers/mod.ts";
-import { fetchManifest } from "./src/services/fetch-manifest.ts";
-import { produceTD } from "./src/services/produce-thing-description.ts";
-export const utils = { produceTD, fetchManifest, ...wotHelpers };
+export { produceTD } from "./src/services/produce-thing-description.ts";
+export * from "./src/services/wot-helpers/validators.ts";
 export * from "./src/types/thing-model-types.ts";
 
 export type {

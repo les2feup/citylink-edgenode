@@ -26,7 +26,7 @@ const tdOpts: cl.ThingDescriptionOpts = {
   selfComposition: true,
 };
 
-const edgeConTD: cl.ThingDescription = await cl.utils.produceTD(
+const edgeConTD: cl.ThingDescription = await cl.produceTD(
   edgeConTM,
   tdOpts,
 );

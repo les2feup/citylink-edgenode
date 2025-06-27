@@ -1,14 +1,14 @@
 import { defineRoute } from "$fresh/server.ts";
 import { fetchResource } from "../../utils/fetch-resource.ts";
 import JsonViewer from "../../islands/JsonViewer.tsx";
-import * as cl from "@citylink-edgenode/core";
+import { Manifest } from "@citylink-edgenode/core";
 
 function parseManifest(data: unknown) {
   if (!data) {
     return null;
   }
 
-  const result = cl.Manifest.safeParse(data);
+  const result = Manifest.safeParse(data);
   if (!result.success) {
     console.error("Failed to parse manifest data", {
       error: result.error,
@@ -16,7 +16,8 @@ function parseManifest(data: unknown) {
     });
     return null;
   }
-  return result;
+
+  return result.data;
 }
 
 export default defineRoute(async (_req, ctx) => {

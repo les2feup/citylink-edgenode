@@ -2,10 +2,10 @@ import { defineRoute } from "$fresh/server.ts";
 import { fetchResource } from "../../utils/fetch-resource.ts";
 import JsonViewer from "../../islands/JsonViewer.tsx";
 import PaginationControls from "../../components/PaginationControls.tsx";
-import * as cl from "@citylink-edgenode/core";
+import { isValidThingModel, type ThingModel } from "@citylink-edgenode/core";
 
 interface Resource {
-  thingModels: cl.ThingModel[];
+  thingModels: ThingModel[];
   headers: Headers;
 }
 
@@ -16,7 +16,7 @@ export default defineRoute(async (_req, ctx) => {
     `http://localhost:8080/thing-models?offset=${offset}&limit=${limit}`;
 
   const content = (
-    data: { thingModels: cl.ThingModel[]; headers: Headers } | null,
+    data: { thingModels: ThingModel[]; headers: Headers } | null,
   ) => {
     return (
       <div class="space-y-6">
@@ -45,8 +45,8 @@ export default defineRoute(async (_req, ctx) => {
         return null;
       }
 
-      const thingModels: cl.ThingModel[] = rawArray.filter((item) => {
-        if (!cl.utils.isValidThingModel(item)) {
+      const thingModels: ThingModel[] = rawArray.filter((item) => {
+        if (!isValidThingModel(item)) {
           console.error("Invalid Thing Model data", { item });
           return false;
         }
