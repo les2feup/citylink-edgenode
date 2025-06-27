@@ -12,8 +12,9 @@ import * as $manifests_index from "./routes/manifests/index.tsx";
 import * as $thing_models_title_ from "./routes/thing-models/[title].tsx";
 import * as $thing_models_index from "./routes/thing-models/index.tsx";
 import * as $things_thingId_ from "./routes/things/[thingId].tsx";
-import * as $AdaptationForm from "./islands/AdaptationForm.tsx";
-import * as $JsonEditor from "./islands/JsonEditor.tsx";
+import * as $AdaptationFormInputs from "./islands/AdaptationFormInputs.tsx";
+import * as $AdaptationLayout from "./islands/AdaptationLayout.tsx";
+import * as $AdaptationPage from "./islands/AdaptationPage.tsx";
 import * as $JsonViewer from "./islands/JsonViewer.tsx";
 import type { Manifest } from "$fresh/server.ts";
 
@@ -31,8 +32,9 @@ const manifest = {
     "./routes/things/[thingId].tsx": $things_thingId_,
   },
   islands: {
-    "./islands/AdaptationForm.tsx": $AdaptationForm,
-    "./islands/JsonEditor.tsx": $JsonEditor,
+    "./islands/AdaptationFormInputs.tsx": $AdaptationFormInputs,
+    "./islands/AdaptationLayout.tsx": $AdaptationLayout,
+    "./islands/AdaptationPage.tsx": $AdaptationPage,
     "./islands/JsonViewer.tsx": $JsonViewer,
   },
   baseUrl: import.meta.url,

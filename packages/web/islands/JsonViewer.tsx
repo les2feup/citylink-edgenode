@@ -1,44 +1,51 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks"; // Keep useState for ReactJson internal state
 
 type Props = {
-  title?: string;
-  collapsed?: number;
-  data: unknown;
+  data: unknown; // The JSON data to display
+  className?: string; // Optional className for styling
+  collapsed?: number; // Optional prop to control initial collapse state
 };
 
-export default function JsonViewer({ collapsed, data }: Props) {
-  // Dynamic import of react-json-view to avoid server-side rendering issues due to Deno
-  // not supporting the "document" global object.
+export default function JsonViewer({ data, className, collapsed }: Props) {
   // deno-lint-ignore no-explicit-any
-  const [JsonView, setJsonView] = useState<any>(null);
+  const [ReactJson, setReactJson] = useState<any>(null);
 
+  // Effect to update the local signal when the prop signal changes
   useEffect(() => {
     import(
       "https://esm.sh/react-json-view@1.21.3?alias=react:preact/compat&external=preact/compat"
     )
-      .then((mod) => setJsonView(() => mod.default))
-      .catch((err) => console.error("Failed to load JSON viewer", err));
+      .then((mod) => setReactJson(() => mod.default))
+      .catch((err) => console.error("Failed to load JSON editor", err));
   }, []);
 
-  if (!JsonView) {
+  if (!ReactJson) {
     return (
-      <div class="p-8 text-center">
-        <h1 class="text-2xl font-semibold">Loading JSON Viewer...</h1>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div class="p-8 text-center text-red-600">
-        <h1 class="text-2xl font-semibold">404: Not found</h1>
+      <div
+        class={`flex items-center justify-center ${
+          className || "h-48"
+        } bg-gray-50 border border-gray-200 rounded-md`}
+      >
+        <div class="text-center text-gray-500">Loading JSON Editor...</div>
       </div>
     );
   }
 
   return (
-    <div class="p-4 overflow-auto">
-      <JsonView src={data} collapsed={collapsed ?? 2} name={false} />
+    <div
+      className={`
+        p-2 bg-white text-sm whitespace-pre-wrap 
+        break-words overflow-auto ${className}
+        `}
+    >
+      <ReactJson
+        src={data}
+        name={false}
+        indentWidth={2}
+        enableClipboard
+        collapsed={collapsed}
+        displayDataTypes={false}
+      />
     </div>
   );
 }
