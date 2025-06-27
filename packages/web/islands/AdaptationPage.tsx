@@ -67,7 +67,10 @@ export default function AdaptationPage({ nodeID, modelTitle }: Props) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(fetchedTM.value),
+        body: JSON.stringify({
+          tmUrl: url,
+          tm: fetchedTM.value, // Use the fetched TM directly
+        }),
       });
 
       const text = await res.text();

@@ -72,10 +72,8 @@ export async function handleRequest(
   const adaptationMatch = pathname.match(/^\/adaptation\/(.+)$/);
   if (method === "POST" && adaptationMatch) {
     const thingId = adaptationMatch[1]; // Extract ID from path
-    const body = await req.text(); // body should be a URL or Thing model
-    const bodyisUrl = URL.canParse(body);
-    const parsedBody = bodyisUrl ? new URL(body) : JSON.parse(body);
-    return await startAdaptation(connectors, thingId, parsedBody);
+    const body = await req.json();
+    return await startAdaptation(connectors, thingId, body);
   }
 
   // --- /actions/searchJSONPath (GET /search/jsonpath?query={query}) ---

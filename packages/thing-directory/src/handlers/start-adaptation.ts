@@ -1,20 +1,29 @@
-import { type EdgeConnector, isValidThingModel } from "@citylink-edgenode/core";
+import {
+  CacheService,
+  type EdgeConnector,
+  isValidThingModel,
+} from "@citylink-edgenode/core";
 import { createLogger } from "common/log";
 import { errorResponse } from "../utils/error-response.ts";
 
 const logger = createLogger("TDD", "StartEndNodeAdaptation");
 
+export type AdaptationInput = {
+  tmUrl: string;
+  tm?: unknown;
+};
+
 export async function startAdaptation(
   connectors: EdgeConnector[],
   thingId: string,
-  tm: URL | unknown,
+  { tmUrl: url, tm }: AdaptationInput,
 ): Promise<Response> {
   logger.debug({ thingId }, "Adaptation invoked");
 
   // Validate the Thing ID and Thing Model
-  if (!thingId || !tm) {
+  if (!thingId || !url || !URL.canParse(url)) {
     return errorResponse(
-      "Thing ID and Thing Model are required.",
+      "Thing ID and Thing Model URL are required.",
       400,
     );
   }
@@ -37,18 +46,22 @@ export async function startAdaptation(
   }
 
   // Validate the Thing Model
-  if (!(tm instanceof URL) && !isValidThingModel(tm)) {
-    logger.error("Bad request: Invalid input. Not Thing Model or URL.");
-    return errorResponse(
-      "Bad request: Invalid input. Not Thing Model or URL.",
-      400,
-    );
+  if (tm) { // TODO: maybe this should not be done here
+    if (isValidThingModel(tm)) {
+      CacheService.getThingModelCache().set(url, tm);
+    } else {
+      logger.error("Invalid Thing Model provided");
+      return errorResponse(
+        "Invalid Thing Model provided.",
+        400,
+      );
+    }
   }
 
   // Start the adaptation process (is a placeholder, actual implementation needed)
   try {
     logger.debug({ thingId }, "Invoking connector to start adaptation");
-    await connector.startNodeAdaptation(thingId, tm);
+    await connector.startNodeAdaptation(thingId, URL.parse(url)!); //TODO: remove the option of passing a TM?
     return new Response(
       `Adaptation started for Thing ID ${thingId} with model ${tm}`,
       { status: 200 },
