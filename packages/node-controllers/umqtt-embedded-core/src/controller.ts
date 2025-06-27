@@ -36,6 +36,8 @@ export type ControllerOpts = {
 const CoreStatusValues = ["UNDEF", "OTAU", "APP"] as const;
 type CoreStatus = (typeof CoreStatusValues)[number];
 
+//TODO: Needs major rewrite into a proper state machine, with timeouts and retries.
+
 export class UMQTTCoreControllerFactory implements EndNodeControllerFactory {
   private brokerURL: URL;
   private compat: ControllerCompatibleTM;
@@ -332,6 +334,7 @@ export class UMQTTCoreController implements EndNodeController {
         () => {
           this.logger?.info("✅ OTAU finish action invoked successfully.");
           eventBus.thingUpdated(this.node.thingDescription.id!);
+          this.adaptationInProgress = false;
         },
       ).catch((err) => {
         this.logger?.error(
@@ -340,6 +343,7 @@ export class UMQTTCoreController implements EndNodeController {
         );
         this.adaptationFinishPromise?.reject(err);
         this.adaptationFinishPromise = undefined;
+        this.adaptationInProgress = false;
       });
     });
   }
