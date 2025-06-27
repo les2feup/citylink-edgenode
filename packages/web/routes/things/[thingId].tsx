@@ -10,5 +10,5 @@ export default defineRoute(async (_req, ctx) => {
     (res) => res.json(),
   );
 
-  return <JsonViewer data={thing} />;
+  return <JsonViewer data={thing} collapsed={2} />;
 });
