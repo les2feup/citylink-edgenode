@@ -1,21 +1,16 @@
 import { createLogger } from "common/log";
-import type { ControllerState, ControllerStateMap } from "./types/states.ts";
-
-export type TransitionError =
-  | "InvalidTransition"
-  | "AlreadyInState"
-  | "CallbackError";
+import type { ControllerState } from "./types/states.ts";
 
 export class ControllerFSM {
-  #state: ControllerState = "Idle";
-  #stateMap: ControllerStateMap;
+  #transitions: Record<ControllerState, ControllerState[]>;
+  #state: ControllerState = "Unknown";
   #logger: ReturnType<typeof createLogger>;
 
   constructor(
-    stateMap: ControllerStateMap,
+    transitions: Record<ControllerState, ControllerState[]>,
     loggerContext?: Record<string, unknown>,
   ) {
-    this.#stateMap = stateMap;
+    this.#transitions = transitions;
     this.#logger = createLogger("uMQTT-Core-Controller", "FSM", loggerContext);
     this.#logger.info(`Initial state: ${this.#state}`);
   }
@@ -25,54 +20,31 @@ export class ControllerFSM {
   }
 
   canTransition(to: ControllerState): boolean {
-    return this.#stateMap[this.#state]?.allowedTransitions.includes(to);
+    return this.#transitions[this.#state]?.includes(to) ?? false;
   }
 
-  async transition(to: ControllerState): Promise<void> {
+  transition(to: ControllerState): void {
     if (this.#state === to) {
-      this.#logger.warn(`Attempted to transition to the same state: ${to}`);
+      this.#logger.warn(
+        { state: to },
+        "Attempted to transition to the same state",
+      );
       throw new Error("AlreadyInState");
     }
 
     if (!this.canTransition(to)) {
       this.#logger.error(
-        `Invalid transition from ${this.#state} to ${to}`,
+        { from: this.#state, to },
+        "Invalid transition attempted",
       );
       throw new Error("InvalidTransition");
     }
 
-    this.#logger.info(`Transition from ${this.#state} to ${to}`);
-    try {
-      await this.#stateMap[this.#state].exitCb?.();
-      this.#state = to;
-      await this.#stateMap[to].entryCb?.();
-    } catch (error) {
-      this.#logger.error(
-        `Error in exit callback for state ${this.#state}: ${error}`,
-      );
-      throw new Error("CallbackError");
-    }
+    this.#logger.info({ from: this.#state, to }, "Transitioning state");
+    this.#state = to;
   }
 
   is(state: ControllerState): boolean {
     return this.#state === state;
-  }
-
-  async execute(): Promise<void> {
-    const currentState = this.#stateMap[this.#state];
-    if (!currentState) {
-      this.#logger.error(`No state data found for state: ${this.#state}`);
-      throw new Error("InvalidState");
-    }
-
-    this.#logger.info(`Executing state: ${this.#state}`);
-    try {
-      await currentState.executionCb?.();
-    } catch (error) {
-      this.#logger.error(
-        `Error in execution callback for state ${this.#state}: ${error}`,
-      );
-      throw new Error("CallbackError");
-    }
   }
 }
