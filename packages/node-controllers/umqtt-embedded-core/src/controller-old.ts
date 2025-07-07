@@ -260,7 +260,7 @@ export class UMQTTCoreController implements EndNodeController {
   }
 
   //TODO: handle adaptation more granularly based on the different Manifest types
-  async startAdaptation(tm: ThingModel | URL): Promise<void> {
+  async adapt(tm: ThingModel | URL): Promise<void> {
     if (
       this.adaptationInitPromise || this.adaptationFinishPromise
     ) {

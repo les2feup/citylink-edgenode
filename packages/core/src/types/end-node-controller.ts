@@ -1,5 +1,4 @@
 import type { EndNode } from "../end-node.ts";
-import type { ThingModel } from "./thing-model-types.ts";
 
 export type ControllerCompatibleTM = {
   title: string;
@@ -10,7 +9,7 @@ export interface EndNodeController {
   stop(): void | Promise<void>;
   start(): void | Promise<void>;
 
-  startAdaptation(tm: ThingModel | URL): Promise<void>;
+  adaptEndNode(tm: URL): Promise<void>;
 
   get endNode(): Readonly<EndNode>;
   get compatible(): Readonly<ControllerCompatibleTM>;

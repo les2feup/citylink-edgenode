@@ -4,7 +4,7 @@ import { crc32 } from "node:zlib";
 import { createLogger } from "common/log";
 
 export type AdaptationHandlers = {
-  adaptationInit(): Promise<void>;
+  adaptationInit(tmURL?: URL): Promise<void>;
   adaptationWrite(file: SourceFile): Promise<string>;
   adaptationDelete(path: string, recursive: boolean): Promise<string[]>;
   adaptationCommit(): Promise<void>;
@@ -91,10 +91,9 @@ export class AdaptationManager {
 
   private async deleteOldFiles(source: SourceFile[]) {
     const newPaths = new Set(source.map((f) => f.path));
-    const toDelete = new Set(
-      [...this.#replaceSet].filter((p) => !newPaths.has(p)),
+    const toDelete = new Set<string>([...this.#replaceSet]).difference(
+      newPaths,
     );
-
     if (!toDelete.size) return;
 
     this.#logger.info(
