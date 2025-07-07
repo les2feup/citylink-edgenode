@@ -17,3 +17,6 @@ export const controllerStateTransitions: ControllerTransitionMap = {
   Adaptation: ["Restarting", "Unknown"],
   Restarting: ["Application", "Adaptation", "Unknown"],
 };
+
+export const CoreStatusValues = ["UNDEF", "OTAU", "APP"] as const;
+export type CoreStatus = (typeof CoreStatusValues)[number];

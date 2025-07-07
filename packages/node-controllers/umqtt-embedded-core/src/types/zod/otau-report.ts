@@ -25,7 +25,7 @@ export const OTAUResult = z.union([
 
 export const OTAUReport = z.object({
   timestamp: z.object({
-    epoch_year: z.number().optional(),
+    epoch_year: z.number().optional().default(1970),
     seconds: z.number(),
   }),
   result: OTAUResult,

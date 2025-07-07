@@ -17,15 +17,22 @@ import { ControllerFSM } from "./fsm.ts";
 import { MQTTClientManager } from "./mqtt-client-manager.ts";
 import { AdaptationManager } from "./adaptation-manager.ts";
 
-import { extractMqttBindings } from "./utils/extract-mqtt-bindings.ts";
+import {
+  defaultPublishPromises,
+  extractMqttBindings,
+  parseTopic,
+  subcriptionPromises,
+} from "./utils/mqtt-utils.ts";
 import { assertActionInput } from "./utils/assert-action-input.ts";
 import { defer } from "./utils/defer.ts";
 
-import { controllerStateTransitions } from "./types/states.ts";
+import {
+  controllerStateTransitions,
+  type CoreStatus,
+  CoreStatusValues,
+} from "./types/states.ts";
 import { OTAUReport } from "./types/zod/otau-report.ts";
-
-const CoreStatusValues = ["UNDEF", "OTAU", "APP"] as const;
-type CoreStatus = (typeof CoreStatusValues)[number];
+import { makePromiseTask, settleAllPromises } from "./utils/async-utils.ts";
 
 export class uMQTTCoreController implements EndNodeController {
   #logger: ReturnType<typeof createLogger>;
@@ -112,12 +119,26 @@ export class uMQTTCoreController implements EndNodeController {
     this.#fms.transition("Unknown");
   }
 
+  #prepareNewEndNode(tm: URL): Promise<EndNode> {
+    const placeholderMap = endNodeMaps.mqtt.create(
+      this.#mqttManager.brokerURL.toString(),
+      this.#node.id,
+    );
+
+    const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {
+      placeholderMap: placeholderMap,
+      // deno-lint-ignore require-await
+      thingDescriptionTransform: async (td) => {
+        const t1 = mqttTransforms.fillPlatfromForms(td, placeholderMap);
+        return mqttTransforms.createTopLevelForms(t1, placeholderMap);
+      },
+    };
+
+    return EndNode.from(tm, opts);
+  }
+
   async adaptEndNode(tm: URL): Promise<void> {
     if (!this.#fms.is("Application")) {
-      this.#logger.error(
-        { state: this.#fms.state },
-        "❌ Cannot start adaptation in current state",
-      );
       throw new Error(
         `InvalidState: Cannot start adaptation in ${this.#fms.state} state`,
       );
@@ -127,37 +148,18 @@ export class uMQTTCoreController implements EndNodeController {
     this.#fms.transition("AdaptationPrep");
 
     try {
-      const placeholderMap = endNodeMaps.mqtt.create(
-        this.#mqttManager.brokerURL.toString(),
-        this.#node.id,
-      );
-
-      const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {
-        placeholderMap: placeholderMap,
-        thingDescriptionTransform: (td) => {
-          const t1 = mqttTransforms.fillPlatfromForms(td, placeholderMap);
-          return Promise.resolve(
-            mqttTransforms.createTopLevelForms(t1, placeholderMap),
-          );
-        },
-      };
-
-      const newNode = await EndNode.from(tm, opts);
+      const newNode = await this.#prepareNewEndNode(tm);
       const source = await newNode.fetchSource();
       await this.#adaptationManager.adapt(source, tm);
       this.#node = newNode;
     } catch (err: unknown) {
       this.#fms.transition("Unknown");
-
+      const message = err instanceof Error ? err.message : String(err);
       this.#logger.error(
         { err },
         "❌ Adaptation failed, transitioning to Unknown state",
       );
-      throw new Error(
-        `Adaptation failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
+      throw new Error(`Adaptation failed: ${message}`);
     }
   }
 
@@ -175,112 +177,91 @@ export class uMQTTCoreController implements EndNodeController {
     this.#logger.info(
       `🔌 Connected to broker at ${this.#mqttManager.brokerURL}`,
     );
+    const allPromises = this.#prepareConnectPromises();
+    for (const { promises, onSuccess, onError } of allPromises) {
+      settleAllPromises(promises, onSuccess, onError);
+    }
+  }
 
-    // Create subcription promises to all end node properties and events
+  #prepareConnectPromises() {
     const subPromises = [
-      ...this.#subcriptionPromises("property", "observeallproperties"),
-      ...this.#subcriptionPromises("event", "subscribeallevents"),
-    ];
+      ["properties", "observeallproperties"],
+      ["events", "observeallevents"],
+    ].flatMap(
+      ([type, action]) =>
+        subcriptionPromises(
+          this.#node.thingDescription,
+          type as "property" | "event",
+          action,
+          this.#mqttManager.subscribe.bind(this.#mqttManager),
+        ),
+    );
 
     // Create default publish promises for properties with const/default values
-    const pubPromises = this.#defaultPublishPromises();
+    const pubPromises = defaultPublishPromises(
+      this.#node.thingDescription,
+      this.#mqttManager.publish.bind(this.#mqttManager),
+    );
 
-    const makePromiseTask = (
-      promises: Promise<void>[],
-      successMsg: string,
-      errorMsg: string,
-    ) => ({
-      promises,
-      onSuccess: () => this.#logger.info(successMsg),
-      onError: (err: Error) => this.#logger.error({ err }, errorMsg),
-    });
-
-    const allPromises = [
+    return [
       makePromiseTask(
         subPromises,
         "✅ Subscribed to all properties and events.",
         "❌ Failed to subscribe to properties/events.",
+        this.#logger,
       ),
       makePromiseTask(
         pubPromises,
         "📤 Published initial property values.",
         "❌ Failed to publish initial property values.",
+        this.#logger,
       ),
     ];
-
-    for (const { promises, onSuccess, onError } of allPromises) {
-      this.#settleAllPromises(promises, onSuccess, onError);
-    }
   }
 
   #onMessage(topic: string, message: Buffer): void {
-    if (!topic.startsWith(this.#topicPrefix)) {
-      this.#logger?.warn(
-        { topic },
-        "Ignoring message on unrelated topic",
-      );
+    const parsedTopic = parseTopic(this.#topicPrefix, topic);
+    if (!parsedTopic) {
+      this.#logger.warn({ topic }, "⚠️ Unsupported MQTT topic format");
       return;
     }
-
-    const affordance = topic.slice(this.#topicPrefix.length);
-    const [affordanceType, affordanceNamespace, ...affordanceNameParts] =
-      affordance.split("/");
-
-    const affordanceName = affordanceNameParts.join("/");
-    if (!affordanceType || !affordanceNamespace || !affordanceName) return;
-
-    if (!["properties", "events", "actions"].includes(affordanceType)) {
-      this.#logger.warn(
-        { topic },
-        `⚠️ Unsupported affordance type: ${affordanceType}`,
-      );
-      return;
-    }
+    const { type, namespace, name } = parsedTopic;
+    const handlerKey = `${type}/${namespace}`;
 
     this.#logger.debug(
-      { topic, affordanceType, affordanceNamespace, affordanceName },
+      { topic, type, namespace, name },
       "Received MQTT message",
     );
 
-    switch (`${affordanceType}/${affordanceNamespace}`) {
+    switch (handlerKey) {
       case "properties/core":
-        this.#handleCoreProperty(
-          affordanceName,
-          message,
-        );
-        break;
-
-      case "properties/app":
-        this.#handleApplicationAffordance("property", affordanceName, message);
-        this.#node.cacheAffordance(
-          "properties",
-          `app/${affordanceName}`,
-          message.toString(),
-        );
+        this.#handleCoreProperty(name, message);
         break;
 
       case "events/core":
-        this.#handleCoreEvent(
-          affordanceName,
-          message,
-        );
+        this.#handleCoreEvent(name, message);
+        break;
+
+      case "properties/app":
+        this.#handleApplicationAffordance("property", name, message);
         break;
 
       case "events/app":
-        this.#handleApplicationAffordance("event", affordanceName, message);
-        this.#node.cacheAffordance(
-          "events",
-          `app/${affordanceName}`,
-          message.toString(),
-        );
+        this.#handleApplicationAffordance("event", name, message);
         break;
 
       default:
         this.#logger.warn(
           { topic },
-          `⚠️ Unsupported affordance ${affordanceType}/${affordanceNamespace}`,
+          `⚠️ Unsupported affordance: ${handlerKey}`,
         );
     }
+
+    this.#node.cacheAffordance(
+      type,
+      `${namespace}/${name}`,
+      message.toString(),
+    );
   }
 
   #handleCoreProperty(
@@ -310,98 +291,96 @@ export class uMQTTCoreController implements EndNodeController {
 
   #handleCoreStatus(status: CoreStatus) {
     switch (status) {
-      case "UNDEF": {
-        this.#logger.info("Core status is to UNDEF (Undefined)");
-        if (this.#willRestart) {
-          this.#logger.info(
-            "Core will restart, transitioning to Restarting state",
-          );
-          this.#fms.transition("Restarting");
-          this.#willRestart = false; // Reset the restart flag
-          return;
-        }
+      case "UNDEF":
+        return this.#onCoreStatusUndef();
+      case "OTAU":
+        return this.#onCoreStatusAdapt();
+      case "APP":
+        return this.#onCoreStatusApp();
+      default:
+        this.#logger.error({ status }, "❌ Invalid core status received");
+    }
+  }
 
+  #onCoreStatusUndef() {
+    this.#logger.info("Core status is UNDEF (Undefined)");
+    if (this.#willRestart) {
+      this.#logger.info(
+        "Core will restart, transitioning to Restarting state",
+      );
+      this.#fms.transition("Restarting");
+      this.#willRestart = false; // Reset the restart flag
+      return;
+    }
+
+    this.#logger.error(
+      "End Node status is UNDEF but no restart scheduled. End Node may be disconnected or in an invalid state.",
+    );
+
+    this.#rejectAllPending("End Node is in UNDEF state");
+    this.#fms.transition("Unknown");
+  }
+
+  #rejectAllPending(reason: string) {
+    const error = new Error(reason);
+    Object.values(this.#pending).forEach((p) => p.reject(error));
+    this.#pending = {};
+  }
+
+  #onCoreStatusAdapt() {
+    if (!(this.#fms.is("Restarting") || this.#fms.is("Unknown"))) {
+      this.#logger.error(
+        { state: this.#fms.state },
+        "⚠️ Unexpected OTAU status received",
+      );
+      return;
+    }
+
+    this.#fms.transition("Adaptation");
+
+    if (this.#pending.adaptationInit) {
+      this.#logger.info(
+        "End Node ready for adaptation, resolving init promise.",
+      );
+      this.#pending.adaptationInit.resolve();
+      delete this.#pending.adaptationInit;
+    } else {
+      this.#logger.warn("End Node entered Adaptation state unexpectedly.");
+
+      this.#node.fetchSource().then((files) => {
+        this.#adaptationManager.adapt(files);
+      }).catch((err) => {
         this.#logger.error(
-          "Core status is UNDEF but no restart scheduled.",
+          { error: err },
+          "❌ Failed to adapt End Node after spontaneous Adaptation state",
         );
-        this.#logger.error(
-          "End Node may be disconnected or in an invalid state.",
-        );
+      });
+    }
+  }
 
-        //TODO: Handle any pending adaptation promises here
-        this.#fms.transition("Unknown");
-        break;
-      }
+  #onCoreStatusApp() {
+    if (!this.#fms.is("Restarting") && !this.#fms.is("Unknown")) {
+      this.#logger.error(
+        { state: this.#fms.state },
+        "⚠️ Unexpected APP status received",
+      );
+      return;
+    }
 
-      case "OTAU": { // TODO: change this to "ADAPT"
-        if (!(this.#fms.is("Restarting") || this.#fms.is("Unknown"))) {
-          this.#logger.error(
-            { state: this.#fms.state },
-            "⚠️ Unexpected OTAU status received",
-          );
-          throw new Error(
-            `InvalidState: Cannot handle OTAU status in ${this.#fms.state} state`,
-          );
-        }
+    this.#fms.transition("Application");
 
-        this.#fms.transition("Adaptation");
-
-        if (this.#pending.adaptationInit) {
-          this.#logger.info(
-            "End Node is ready for adaptation, resolving init promise.",
-          );
-          this.#pending.adaptationInit.resolve();
-          delete this.#pending.adaptationInit;
-        } else if (this.#pending.adaptationRollback) {
-          this.#logger.warn(
-            "End Node rebooted into Adaptation state, resolving rollback promise.",
-          );
-          this.#pending.adaptationRollback.resolve();
-          delete this.#pending.adaptationRollback;
-        } else {
-          this.#logger.warn(
-            "End Node rebooted into Adaptation state without pending promises.",
-          );
-          this.#node.fetchSource().then((files) => {
-            this.#adaptationManager.adapt(files);
-          }).catch((err) => {
-            this.#logger.error(
-              { error: err },
-              "❌ Failed to adapt End Node after OTAU status",
-            );
-          });
-        }
-
-        break;
-      }
-
-      case "APP": {
-        if (!this.#fms.is("Restarting") && !this.#fms.is("Unknown")) {
-          this.#logger.error(
-            { state: this.#fms.state },
-            "⚠️ Unexpected APP status received",
-          );
-          throw new Error(
-            `InvalidState: Cannot handle APP status in ${this.#fms.state} state`,
-          );
-        }
-
-        this.#fms.transition("Application");
-        if (this.#pending.adaptationCommit) {
-          this.#logger.info(
-            "End Node adaptation committed successfully, resolving commit promise.",
-          );
-          this.#pending.adaptationCommit.resolve();
-          delete this.#pending.adaptationCommit;
-        } else if (this.#pending.adaptationRollback) {
-          this.#logger.info(
-            "End Node rolled back adaptation, resolving rollback promise.",
-          );
-          this.#pending.adaptationRollback.resolve();
-          delete this.#pending.adaptationRollback;
-        }
-        break;
-      }
+    if (this.#pending.adaptationCommit) {
+      this.#logger.info(
+        "End Node adaptation committed successfully, resolving commit promise.",
+      );
+      this.#pending.adaptationCommit.resolve();
+      delete this.#pending.adaptationCommit;
+    } else if (this.#pending.adaptationRollback) {
+      this.#logger.info(
+        "End Node rolled back adaptation, resolving rollback promise.",
+      );
+      this.#pending.adaptationRollback.resolve();
+      delete this.#pending.adaptationRollback;
     }
   }
 
@@ -453,13 +432,7 @@ export class uMQTTCoreController implements EndNodeController {
     }
 
     //TODO: Rename the OTAUInit action to something like "AdaptationInit"
-    await this.#invokeAction(
-      {
-        name: "OTAUInit",
-        input: tmURL.toString(),
-        prefix: "citylink:embeddedCore",
-      },
-    );
+    await this.#invokeCoreAction("OTAUInit", tmURL.toString());
 
     this.#willRestart = true;
     this.#pending.adaptationInit = defer<void>();
@@ -470,11 +443,7 @@ export class uMQTTCoreController implements EndNodeController {
     this.#assertAdaptationState("adaptationWrite");
 
     const input = AdaptationManager.makeWriteInput(file);
-    await this.#invokeAction({
-      name: "OTAUWrite",
-      input,
-      prefix: "citylink:embeddedCore",
-    });
+    await this.#invokeCoreAction("OTAUWrite", input);
 
     this.#pending.adaptationWrite = defer<string>();
     return await this.#pending.adaptationWrite.promise;
@@ -482,12 +451,7 @@ export class uMQTTCoreController implements EndNodeController {
 
   async #adaptationDelete(path: string, recursive: boolean): Promise<string[]> {
     this.#assertAdaptationState("adaptationDelete");
-
-    await this.#invokeAction({
-      name: "OTAUDelete",
-      input: { path, recursive },
-      prefix: "citylink:embeddedCore",
-    });
+    await this.#invokeCoreAction("OTAUDelete", { path, recursive });
 
     this.#pending.adaptationDelete = defer<string[]>();
     return await this.#pending.adaptationDelete.promise;
@@ -495,12 +459,7 @@ export class uMQTTCoreController implements EndNodeController {
 
   async #adaptationCommit(): Promise<void> {
     this.#assertAdaptationState("adaptationCommit");
-
-    await this.#invokeAction({
-      name: "OTAUFinish",
-      input: true, // true indicates commit
-      prefix: "citylink:embeddedCore",
-    });
+    await this.#invokeCoreAction("OTAUFinish", true); // true indicates commit
 
     this.#willRestart = true;
     this.#pending.adaptationCommit = defer<void>();
@@ -509,104 +468,11 @@ export class uMQTTCoreController implements EndNodeController {
 
   async #adaptationRollback(): Promise<void> {
     this.#assertAdaptationState("adaptationRollback");
-
-    await this.#invokeAction({
-      name: "OTAUFinish",
-      input: false, // false indicates rollback
-      prefix: "citylink:embeddedCore",
-    });
+    await this.#invokeCoreAction("OTAUFinish", false); // false indicates rollback
 
     this.#willRestart = true;
     this.#pending.adaptationRollback = defer<void>();
     return await this.#pending.adaptationRollback.promise;
-  }
-
-  // ------- Utility methods --------
-
-  #subcriptionPromises(
-    affordanceType: "property" | "event",
-    op: string,
-  ): Promise<void>[] {
-    const subPromises: Promise<void>[] = [];
-
-    // --- Subscribe to all observable properties ---
-    const options = extractMqttBindings(
-      this.#node.thingDescription.forms,
-      affordanceType,
-      op,
-    );
-    if (options) {
-      subPromises.push(
-        this.#mqttManager.subscribe(options.topic, options.qos ?? 0),
-      );
-    } else {
-      this.#logger.warn(
-        `⚠️ No MQTT binding options found for top level ${affordanceType} subscription.`,
-      );
-    }
-
-    return subPromises;
-  }
-
-  #defaultPublishPromises() {
-    const pubPromises: Promise<void>[] = [];
-
-    // --- Publish default/const values of properties ---
-    const properties = this.#node.thingDescription.properties ?? {};
-    for (const [name, prop] of Object.entries(properties)) {
-      const value = prop.const ?? prop.default ?? null;
-      if (value === null) continue;
-
-      const opts = extractMqttBindings(prop.forms, "property", "readproperty");
-      if (opts) {
-        pubPromises.push(
-          this.#mqttManager.publish(
-            opts.topic,
-            value,
-            opts.qos ?? 0,
-            opts.retain ?? false,
-          ),
-        );
-      } else {
-        this.#logger.warn(
-          `⚠️ No MQTT publish options found for property '${name}'.`,
-        );
-      }
-    }
-
-    return pubPromises;
-  }
-
-  #settleAllPromises<T>(
-    promises: Promise<T>[],
-    onSuccess: (results: T[]) => void,
-    onError: (error: Error) => void,
-  ) {
-    Promise.allSettled(promises)
-      .then((results) => {
-        const fulfilled: T[] = [];
-        const errors: unknown[] = [];
-
-        for (const result of results) {
-          if (result.status === "fulfilled") {
-            fulfilled.push(result.value);
-          } else {
-            errors.push(result.reason);
-          }
-        }
-
-        if (fulfilled.length > 0) {
-          onSuccess(fulfilled);
-        }
-
-        if (errors.length > 0) {
-          const message = errors
-            .map((err) => (err instanceof Error ? err.message : String(err)))
-            .join(", ");
-          onError(new Error(message));
-        }
-      })
-      .catch(onError);
   }
 
   #handleApplicationAffordance(
@@ -643,44 +509,53 @@ export class uMQTTCoreController implements EndNodeController {
   }
 
   #handleOtauReport(msg: string) {
-    const json = JSON.parse(msg);
-    const parsed = OTAUReport.safeParse(json);
-    if (!parsed.success) {
-      this.#logger.error(
+    const logProcessedTime = (
+      result: OTAUReport["result"],
+      year: number,
+      seconds: number,
+    ) => {
+      const processedAt = new Date(Date.UTC(year, 0, 1) + seconds * 1000);
+      this.#logger.info(
         {
-          received: JSON.stringify(msg, null, 2),
-          error: parsed.error.format(),
+          now: new Date().toISOString(),
+          processedAt: processedAt.toISOString(),
+          result: JSON.stringify(result, null, 2),
         },
-        "❌ Invalid OTAU report",
+        "OTAU report processed",
       );
-      return;
+    };
+
+    try {
+      const json = JSON.parse(msg);
+      const parsed = OTAUReport.safeParse(json);
+
+      if (!parsed.success) {
+        this.#logger.error(
+          { error: parsed.error.format() },
+          "❌ Invalid OTAU report format",
+        );
+        return;
+      }
+
+      const { timestamp: { epoch_year, seconds }, result } = parsed.data;
+      this.#processOtauResult(result);
+      logProcessedTime(result, epoch_year, seconds);
+    } catch (error) {
+      this.#logger.error({ error }, "❌ Failed to parse OTAU report");
     }
+  }
 
-    const { timestamp, result } = parsed.data;
-    const { epoch_year = 1970, seconds } = timestamp;
-    const base = Date.UTC(epoch_year, 0, 1); // January 1st of the year
-    const date = new Date(base + seconds * 1000);
-    this.#logger.info(
-      {
-        timestamp: date.toISOString(),
-        result: JSON.stringify(result, null, 2),
-      },
-      "📅 OTAU report received",
-    );
-
+  #processOtauResult(result: OTAUReport["result"]) {
     if (result.error) {
-      this.#pending.adaptationWrite?.reject(new Error(result.message));
-      this.#pending.adaptationDelete?.reject(new Error(result.message));
+      const error = new Error(result.message);
+      this.#pending.adaptationWrite?.reject(error);
+      this.#pending.adaptationDelete?.reject(error);
     } else if (result.written) {
       this.#pending.adaptationWrite?.resolve(result.written);
     } else if (result.deleted) {
       this.#pending.adaptationDelete?.resolve(result.deleted);
     } else {
-      // Should never happen if Zod schema is correct
-      this.#logger.error({
-        timestamp: date.toISOString(),
-        result: JSON.stringify(result, null, 2),
-      }, "❌ Unknown OTAU report result format");
+      this.#logger.error({ result }, "❌ Unknown OTAU report result format");
     }
   }
 
@@ -724,6 +599,14 @@ export class uMQTTCoreController implements EndNodeController {
       bindings.qos,
       bindings.retain,
     );
+  }
+
+  #invokeCoreAction(name: string, input?: unknown): Promise<void> {
+    return this.#invokeAction({
+      name,
+      input,
+      prefix: "citylink:embeddedCore",
+    });
   }
 
   #assertAdaptationState(op: string): void {
