@@ -21,18 +21,16 @@ import {
   defaultPublishPromises,
   extractMqttBindings,
   parseTopic,
-  subcriptionPromises,
 } from "./utils/mqtt-utils.ts";
 import { assertActionInput } from "./utils/assert-action-input.ts";
-import { defer } from "./utils/defer.ts";
 
 import {
   controllerStateTransitions,
   type CoreStatus,
   CoreStatusValues,
 } from "./types/states.ts";
-import { OTAUReport } from "./types/zod/otau-report.ts";
-import { makePromiseTask, settleAllPromises } from "./utils/async-utils.ts";
+import { AdaptReport } from "./types/zod/adapt-report.ts";
+import { defer, settleAllPromises } from "./utils/async-utils.ts";
 
 export class uMQTTCoreController implements EndNodeController {
   #logger: ReturnType<typeof createLogger>;
@@ -103,10 +101,27 @@ export class uMQTTCoreController implements EndNodeController {
 
   start(): void | Promise<void> {
     this.#logger.info("Starting uMQTT-Core Controller...");
-    this.#mqttManager.connect(
-      this.#onConnect.bind(this),
-      this.#onMessage.bind(this),
-    );
+
+    const onMessage = (topic: string, message: Buffer<ArrayBufferLike>) => {
+      try {
+        this.#onMessage(topic, message);
+      } catch (err: unknown) {
+        this.#logger.error(
+          { err, topic, message: message.toString() },
+          "❌ Error processing MQTT message",
+        );
+      }
+    };
+
+    const onConnect = () => {
+      try {
+        this.#onConnect();
+      } catch (err: unknown) {
+        this.#logger.error({ err }, "❌ Error during MQTT connection setup");
+      }
+    };
+
+    this.#mqttManager.connect(onConnect, onMessage);
   }
 
   stop(): void | Promise<void> {
@@ -183,40 +198,85 @@ export class uMQTTCoreController implements EndNodeController {
     }
   }
 
-  #prepareConnectPromises() {
+  #prepareConnectPromises(timeoutMs = 3000) {
     const subPromises = [
-      ["properties", "observeallproperties"],
-      ["events", "observeallevents"],
-    ].flatMap(
-      ([type, action]) =>
-        subcriptionPromises(
-          this.#node.thingDescription,
-          type as "property" | "event",
-          action,
-          this.#mqttManager.subscribe.bind(this.#mqttManager),
-        ),
-    );
+      ...this.#collectSubscriptionPromises("property", "observeallproperties"),
+      ...this.#collectSubscriptionPromises("event", "subscribeallevents"),
+    ];
+    const pubPromises = this.#collectPublishPromises();
 
-    // Create default publish promises for properties with const/default values
-    const pubPromises = defaultPublishPromises(
+    return [
+      this.#wrapPromiseTasks(
+        subPromises,
+        "Subscribe",
+        "✅ Subscribed to all properties and events.",
+        "❌ Failed to subscribe to properties/events",
+        timeoutMs,
+      ),
+      this.#wrapPromiseTasks(
+        pubPromises,
+        "Publish",
+        "📤 Published initial property values.",
+        "❌ Failed to publish initial property values",
+        timeoutMs,
+      ),
+    ];
+  }
+
+  #collectSubscriptionPromises(
+    type: "property" | "event",
+    op: string,
+  ): Promise<void>[] {
+    const bindings = extractMqttBindings(
+      this.#node.thingDescription.forms,
+      type,
+      op,
+    );
+    if (!bindings) {
+      this.#logger.error(
+        "❌ No MQTT bindings found for observing all properties",
+      );
+      throw new Error("BindingNotFound: observeallproperties");
+    }
+
+    return [this.#mqttManager.subscribe(bindings.topic, bindings.qos ?? 0)];
+  }
+
+  #collectPublishPromises(): Promise<void>[] {
+    return defaultPublishPromises(
       this.#node.thingDescription,
       this.#mqttManager.publish.bind(this.#mqttManager),
     );
+  }
 
-    return [
-      makePromiseTask(
-        subPromises,
-        "✅ Subscribed to all properties and events.",
-        "❌ Failed to subscribe to properties/events.",
-        this.#logger,
+  #withTimeout(
+    p: Promise<void>,
+    timeoutMs: number,
+    context: string,
+  ): Promise<void> {
+    return Promise.race([
+      p,
+      new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout in ${context}`)), timeoutMs)
       ),
-      makePromiseTask(
-        pubPromises,
-        "📤 Published initial property values.",
-        "❌ Failed to publish initial property values.",
-        this.#logger,
+    ]);
+  }
+
+  #wrapPromiseTasks(
+    promises: Promise<void>[],
+    context: string,
+    successMsg: string,
+    errorMsg: string,
+    timeoutMs: number,
+  ) {
+    return {
+      promises: promises.map((p, i) =>
+        this.#withTimeout(p, timeoutMs, `${context} [${i}]`)
       ),
-    ];
+      onSuccess: () => this.#logger.info(successMsg),
+      onError: (err: Error) =>
+        this.#logger.error({ err }, `${errorMsg}: ${err.message}`),
+    };
   }
 
   #onMessage(topic: string, message: Buffer): void {
@@ -226,13 +286,12 @@ export class uMQTTCoreController implements EndNodeController {
       return;
     }
     const { type, namespace, name } = parsedTopic;
-    const handlerKey = `${type}/${namespace}`;
-
     this.#logger.debug(
-      { topic, type, namespace, name },
+      { topic, type, namespace, affordance: name },
       "Received MQTT message",
     );
 
+    const handlerKey = `${type}/${namespace}`;
     switch (handlerKey) {
       case "properties/core":
         this.#handleCoreProperty(name, message);
@@ -265,16 +324,16 @@ export class uMQTTCoreController implements EndNodeController {
   }
 
   #handleCoreProperty(
-    affordanceName: string,
+    affordance: string,
     message: Buffer<ArrayBufferLike>,
   ) {
     const msg = message.toString();
     this.#logger.debug(
-      { affordanceName, message: msg },
+      { affordance, message: msg },
       "Handling core property",
     );
 
-    switch (affordanceName) {
+    switch (affordance) {
       case "status": {
         this.#logger.debug({ status: msg }, "Core status update received");
         if (!CoreStatusValues.includes(msg as CoreStatus)) {
@@ -293,7 +352,7 @@ export class uMQTTCoreController implements EndNodeController {
     switch (status) {
       case "UNDEF":
         return this.#onCoreStatusUndef();
-      case "OTAU":
+      case "ADAPT":
         return this.#onCoreStatusAdapt();
       case "APP":
         return this.#onCoreStatusApp();
@@ -331,9 +390,12 @@ export class uMQTTCoreController implements EndNodeController {
     if (!(this.#fms.is("Restarting") || this.#fms.is("Unknown"))) {
       this.#logger.error(
         { state: this.#fms.state },
-        "⚠️ Unexpected OTAU status received",
+        "⚠️ Unexpected ADAPT status received",
       );
-      return;
+
+      this.#rejectAllPending(
+        "Unexpected ADAPT status received",
+      );
     }
 
     this.#fms.transition("Adaptation");
@@ -345,7 +407,7 @@ export class uMQTTCoreController implements EndNodeController {
       this.#pending.adaptationInit.resolve();
       delete this.#pending.adaptationInit;
     } else {
-      this.#logger.warn("End Node entered Adaptation state unexpectedly.");
+      this.#logger.warn("Spontaneous End Node adaptation detected.");
 
       this.#node.fetchSource().then((files) => {
         this.#adaptationManager.adapt(files);
@@ -364,7 +426,10 @@ export class uMQTTCoreController implements EndNodeController {
         { state: this.#fms.state },
         "⚠️ Unexpected APP status received",
       );
-      return;
+
+      this.#rejectAllPending(
+        "Unexpected APP status received",
+      );
     }
 
     this.#fms.transition("Application");
@@ -381,19 +446,23 @@ export class uMQTTCoreController implements EndNodeController {
       );
       this.#pending.adaptationRollback.resolve();
       delete this.#pending.adaptationRollback;
+    } else {
+      this.#logger.debug(
+        "Nothing to resolve, End Node is in Application state.",
+      );
     }
   }
 
   #handleCoreEvent(affordanceName: string, message: Buffer<ArrayBufferLike>) {
     const msg = message.toString();
     switch (affordanceName) {
-      case "otau/report":
-        this.#assertAdaptationState("otau/report");
+      case "adapt/report":
+        this.#assertAdaptationState("adapt/report");
         this.#logger.info(
           { affordanceName },
-          "Received OTAU report event",
+          "Received ADAPT report event",
         );
-        this.#handleOtauReport(msg);
+        this.#handleAdaptReport(msg);
         break;
       default:
         this.#logger.warn(
@@ -431,48 +500,62 @@ export class uMQTTCoreController implements EndNodeController {
       throw new Error("InvalidArgument: tmURL is required for adaptationInit");
     }
 
-    //TODO: Rename the OTAUInit action to something like "AdaptationInit"
-    await this.#invokeCoreAction("OTAUInit", tmURL.toString());
+    await this.#invokeCoreAction("adaptInit", tmURL.toString());
 
     this.#willRestart = true;
     this.#pending.adaptationInit = defer<void>();
-    return await this.#pending.adaptationInit.promise;
+    return await this.#withStateTimeout(
+      this.#pending.adaptationInit.promise,
+      "AdaptationInit Timeout",
+    );
   }
 
   async #adaptationWrite(file: SourceFile): Promise<string> {
     this.#assertAdaptationState("adaptationWrite");
 
     const input = AdaptationManager.makeWriteInput(file);
-    await this.#invokeCoreAction("OTAUWrite", input);
+    await this.#invokeCoreAction("adaptWrite", input);
 
     this.#pending.adaptationWrite = defer<string>();
-    return await this.#pending.adaptationWrite.promise;
+    return await this.#withStateTimeout(
+      this.#pending.adaptationWrite.promise,
+      "AdaptationWrite Timeout",
+    );
   }
 
   async #adaptationDelete(path: string, recursive: boolean): Promise<string[]> {
     this.#assertAdaptationState("adaptationDelete");
-    await this.#invokeCoreAction("OTAUDelete", { path, recursive });
+    await this.#invokeCoreAction("adaptDelete", { path, recursive });
 
     this.#pending.adaptationDelete = defer<string[]>();
-    return await this.#pending.adaptationDelete.promise;
+    return await this.#withStateTimeout(
+      this.#pending.adaptationDelete.promise,
+      "AdaptationDelete Timeout",
+    );
   }
 
   async #adaptationCommit(): Promise<void> {
     this.#assertAdaptationState("adaptationCommit");
-    await this.#invokeCoreAction("OTAUFinish", true); // true indicates commit
+    await this.#invokeCoreAction("adaptFinish", true); // true indicates commit
 
     this.#willRestart = true;
     this.#pending.adaptationCommit = defer<void>();
-    return await this.#pending.adaptationCommit.promise;
+    return await this.#withStateTimeout(
+      this.#pending.adaptationCommit.promise,
+      "AdaptationCommit Timeout",
+    );
   }
 
   async #adaptationRollback(): Promise<void> {
     this.#assertAdaptationState("adaptationRollback");
-    await this.#invokeCoreAction("OTAUFinish", false); // false indicates rollback
+    await this.#invokeCoreAction("adaptFinish", false); // false indicates rollback
 
     this.#willRestart = true;
     this.#pending.adaptationRollback = defer<void>();
-    return await this.#pending.adaptationRollback.promise;
+    return await this.#withStateTimeout(
+      this.#pending.adaptationRollback.promise,
+      "AdaptationRollback Timeout",
+    );
   }
 
   #handleApplicationAffordance(
@@ -508,9 +591,9 @@ export class uMQTTCoreController implements EndNodeController {
     }
   }
 
-  #handleOtauReport(msg: string) {
+  #handleAdaptReport(msg: string) {
     const logProcessedTime = (
-      result: OTAUReport["result"],
+      result: AdaptReport["result"],
       year: number,
       seconds: number,
     ) => {
@@ -521,31 +604,31 @@ export class uMQTTCoreController implements EndNodeController {
           processedAt: processedAt.toISOString(),
           result: JSON.stringify(result, null, 2),
         },
-        "OTAU report processed",
+        "ADAPT report processed",
       );
     };
 
     try {
       const json = JSON.parse(msg);
-      const parsed = OTAUReport.safeParse(json);
+      const parsed = AdaptReport.safeParse(json);
 
       if (!parsed.success) {
         this.#logger.error(
           { error: parsed.error.format() },
-          "❌ Invalid OTAU report format",
+          "❌ Invalid ADAPT report format",
         );
         return;
       }
 
       const { timestamp: { epoch_year, seconds }, result } = parsed.data;
-      this.#processOtauResult(result);
+      this.#processAdaptResult(result);
       logProcessedTime(result, epoch_year, seconds);
     } catch (error) {
-      this.#logger.error({ error }, "❌ Failed to parse OTAU report");
+      this.#logger.error({ error }, "❌ Failed to parse ADAPT report");
     }
   }
 
-  #processOtauResult(result: OTAUReport["result"]) {
+  #processAdaptResult(result: AdaptReport["result"]) {
     if (result.error) {
       const error = new Error(result.message);
       this.#pending.adaptationWrite?.reject(error);
@@ -555,7 +638,7 @@ export class uMQTTCoreController implements EndNodeController {
     } else if (result.deleted) {
       this.#pending.adaptationDelete?.resolve(result.deleted);
     } else {
-      this.#logger.error({ result }, "❌ Unknown OTAU report result format");
+      this.#logger.error({ result }, "❌ Unknown ADAPT report result format");
     }
   }
 
@@ -619,5 +702,25 @@ export class uMQTTCoreController implements EndNodeController {
         "InvalidState: Cannot perform adaptation operation outside of Adaptation state",
       );
     }
+  }
+
+  #withStateTimeout<T>(
+    promise: Promise<T>,
+    context: string,
+    timeoutMs = 60000,
+  ): Promise<T> {
+    return Promise.race([
+      promise,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => {
+          this.#logger.error(
+            { context },
+            `⏱️ Timeout waiting for End Node during ${context}, transitioning to Unknown.`,
+          );
+          this.#fms.transition("Unknown");
+          reject(new Error(`Timeout in ${context}`));
+        }, timeoutMs)
+      ),
+    ]);
   }
 }

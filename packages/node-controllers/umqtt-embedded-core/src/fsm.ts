@@ -29,7 +29,7 @@ export class ControllerFSM {
         { state: to },
         "Attempted to transition to the same state",
       );
-      throw new Error("AlreadyInState");
+      return;
     }
 
     if (!this.canTransition(to)) {

@@ -44,7 +44,7 @@ export class MQTTClientManager {
           this.#logger.error({ topic, err }, "❌ Subscription failed");
           reject(err);
         } else {
-          this.#logger.info({ topic }, "📡 Subscribed to topic");
+          this.#logger.info({ topic, qos }, "📡 Subscribed to topic");
           resolve();
         }
       });

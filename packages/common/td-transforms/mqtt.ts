@@ -62,6 +62,8 @@ export function createTopLevelForms(
         {
             href: map.CITYLINK_HREF,
             "mqv:filter": `${map.CITYLINK_PROPERTY}/#`,
+            "mqv:qos": 1,
+            "mqv:retain": true,
             op: [
                 "observeallproperties",
                 "unobserveallproperties",
@@ -71,6 +73,8 @@ export function createTopLevelForms(
         {
             href: map.CITYLINK_HREF,
             "mqv:filter": `${map.CITYLINK_EVENT}/#`,
+            "mqv:qos": 1,
+            "mqv:retain": false,
             op: [
                 "subscribeallevents",
                 "unsubscribeallevents",
@@ -83,7 +87,8 @@ export function createTopLevelForms(
     const prev = (td.forms || []) as NonNullable<ThingDescription["forms"]>;
     td.forms = [...prev, ...topLevel];
     logger.debug(
-        `Added top-level forms to Thing Description ${td.id}`,
+        { thingId: td.id, thingName: td.title },
+        `Added top-level forms to Thing Description`,
     );
     return td;
 }

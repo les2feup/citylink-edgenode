@@ -1,5 +1,3 @@
-import type { createLogger } from "common/log";
-
 export function defer<T>() {
   let resolve!: (v: T) => void;
   let reject!: (e?: unknown) => void;
@@ -39,22 +37,13 @@ export function settleAllPromises<T>(
         onError(new Error(message));
       }
     })
-    .catch(onError);
-}
-
-export function makePromiseTask(
-  promises: Promise<void>[],
-  successMsg: string,
-  errorMsg: string,
-  logger: ReturnType<typeof createLogger>,
-): {
-  promises: Promise<void>[];
-  onSuccess: () => void;
-  onError: (err: Error) => void;
-} {
-  return {
-    promises,
-    onSuccess: () => logger.info(successMsg),
-    onError: (err: Error) => logger.error({ err }, errorMsg),
-  };
+    .catch((err) => {
+      onError(
+        new Error(
+          `Error settling promises: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    });
 }

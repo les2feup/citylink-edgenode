@@ -95,16 +95,3 @@ export function defaultPublishPromises(
 
   return promises;
 }
-
-export function subcriptionPromises(
-  td: ThingDescription,
-  type: "property" | "event",
-  op: string,
-  subscriber: (topic: string, qos: 0 | 1 | 2) => Promise<void>,
-): Promise<void>[] {
-  const promises: Promise<void>[] = [];
-  const opts = extractMqttBindings(td.forms, type, op);
-  if (opts) promises.push(subscriber(opts.topic, opts.qos ?? 0));
-
-  return promises;
-}

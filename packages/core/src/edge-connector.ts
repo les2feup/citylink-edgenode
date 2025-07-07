@@ -5,7 +5,6 @@ import type {
   EndNodeController,
   EndNodeControllerFactory,
 } from "./types/end-node-controller.ts";
-import type { ThingModel } from "./types/thing-model-types.ts";
 
 export abstract class EdgeConnector {
   protected readonly controllers = new Map<
