@@ -126,25 +126,39 @@ export class uMQTTCoreController implements EndNodeController {
     this.#logger.info("Starting adaptation process...");
     this.#fms.transition("AdaptationPrep");
 
-    const placeholderMap = endNodeMaps.mqtt.create(
-      this.#mqttManager.brokerURL.toString(),
-      this.#node.id,
-    );
+    try {
+      const placeholderMap = endNodeMaps.mqtt.create(
+        this.#mqttManager.brokerURL.toString(),
+        this.#node.id,
+      );
 
-    const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {
-      placeholderMap: placeholderMap,
-      thingDescriptionTransform: (td) => {
-        const t1 = mqttTransforms.fillPlatfromForms(td, placeholderMap);
-        return Promise.resolve(
-          mqttTransforms.createTopLevelForms(t1, placeholderMap),
-        );
-      },
-    };
+      const opts: ThingDescriptionOpts<EndNodeMapTypes["mqtt"]> = {
+        placeholderMap: placeholderMap,
+        thingDescriptionTransform: (td) => {
+          const t1 = mqttTransforms.fillPlatfromForms(td, placeholderMap);
+          return Promise.resolve(
+            mqttTransforms.createTopLevelForms(t1, placeholderMap),
+          );
+        },
+      };
 
-    const newNode = await EndNode.from(tm, opts);
-    const source = await newNode.fetchSource();
-    await this.#adaptationManager.adapt(source);
-    this.#node = newNode;
+      const newNode = await EndNode.from(tm, opts);
+      const source = await newNode.fetchSource();
+      await this.#adaptationManager.adapt(source, tm);
+      this.#node = newNode;
+    } catch (err: unknown) {
+      this.#fms.transition("Unknown");
+
+      this.#logger.error(
+        { err },
+        "❌ Adaptation failed, transitioning to Unknown state",
+      );
+      throw new Error(
+        `Adaptation failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
   get endNode(): Readonly<EndNode> {
@@ -238,6 +252,11 @@ export class uMQTTCoreController implements EndNodeController {
 
       case "properties/app":
         this.#handleApplicationAffordance("property", affordanceName, message);
+        this.#node.cacheAffordance(
+          "properties",
+          `app/${affordanceName}`,
+          message.toString(),
+        );
         break;
 
       case "events/core":
@@ -249,6 +268,11 @@ export class uMQTTCoreController implements EndNodeController {
 
       case "events/app":
         this.#handleApplicationAffordance("event", affordanceName, message);
+        this.#node.cacheAffordance(
+          "events",
+          `app/${affordanceName}`,
+          message.toString(),
+        );
         break;
 
       default:
@@ -310,7 +334,7 @@ export class uMQTTCoreController implements EndNodeController {
       }
 
       case "OTAU": { // TODO: change this to "ADAPT"
-        if (!this.#fms.is("Restarting") || !this.#fms.is("Unknown")) {
+        if (!(this.#fms.is("Restarting") || this.#fms.is("Unknown"))) {
           this.#logger.error(
             { state: this.#fms.state },
             "⚠️ Unexpected OTAU status received",
@@ -321,6 +345,7 @@ export class uMQTTCoreController implements EndNodeController {
         }
 
         this.#fms.transition("Adaptation");
+
         if (this.#pending.adaptationInit) {
           this.#logger.info(
             "End Node is ready for adaptation, resolving init promise.",
@@ -333,6 +358,18 @@ export class uMQTTCoreController implements EndNodeController {
           );
           this.#pending.adaptationRollback.resolve();
           delete this.#pending.adaptationRollback;
+        } else {
+          this.#logger.warn(
+            "End Node rebooted into Adaptation state without pending promises.",
+          );
+          this.#node.fetchSource().then((files) => {
+            this.#adaptationManager.adapt(files);
+          }).catch((err) => {
+            this.#logger.error(
+              { error: err },
+              "❌ Failed to adapt End Node after OTAU status",
+            );
+          });
         }
 
         break;
@@ -603,8 +640,6 @@ export class uMQTTCoreController implements EndNodeController {
 
       this.#fms.transition("Application");
     }
-
-    this.#node.cacheAffordance(type, `app/${affordanceName}`, msg);
   }
 
   #handleOtauReport(msg: string) {

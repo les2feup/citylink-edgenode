@@ -11,7 +11,7 @@ export type ControllerTransitionMap = Record<
 >;
 
 export const controllerStateTransitions: ControllerTransitionMap = {
-  Unknown: ["Application", "AdaptationPrep"],
+  Unknown: ["Application", "AdaptationPrep", "Adaptation"],
   Application: ["AdaptationPrep", "Unknown"],
   AdaptationPrep: ["Restarting", "Unknown"],
   Adaptation: ["Restarting", "Unknown"],

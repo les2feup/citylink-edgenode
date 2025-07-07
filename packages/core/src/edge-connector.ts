@@ -84,16 +84,16 @@ export abstract class EdgeConnector {
     return controller.endNode;
   }
 
-  async startNodeAdaptation(
+  async adaptEndNode(
     uuid: string,
-    newTM: ThingModel | URL,
+    newTM: URL,
   ): Promise<void> {
     const controller = this.controllers.get(uuid) ||
       this.controllers.get(uuid.split("urn:uuid:")[1]); //TODO: remove the need for this
     if (!controller) {
       throw new Error(`Controller for UUID ${uuid} not found`);
     }
-    return await controller.startAdaptation(newTM);
+    return await controller.adaptEndNode(newTM);
   }
 
   protected async startNodeController(

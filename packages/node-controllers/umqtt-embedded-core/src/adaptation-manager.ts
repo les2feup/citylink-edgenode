@@ -45,7 +45,7 @@ export class AdaptationManager {
     return this.#replaceSet;
   }
 
-  async adapt(source: SourceFile[]): Promise<void> {
+  async adapt(source: SourceFile[], tmURL?: URL): Promise<void> {
     const [valid, errorMsg] = this.validateSource(source);
     if (!valid) throw new Error(errorMsg!);
 
@@ -55,7 +55,7 @@ export class AdaptationManager {
         "🔄 Starting adaptation...",
       );
 
-      await this.#handlers.adaptationInit();
+      await this.#handlers.adaptationInit(tmURL);
       await this.deleteOldFiles(source);
       await this.writeNewFiles(source);
       await this.#handlers.adaptationCommit();

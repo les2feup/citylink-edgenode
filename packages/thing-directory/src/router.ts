@@ -6,7 +6,7 @@ import { listManifests } from "./handlers/list-manifests.ts";
 import { retrieveThing } from "./handlers/retrieve-thing.ts";
 import { retrieveThingModel } from "./handlers/retrieve-thing-model.ts";
 import { retrieveManifest } from "./handlers/retrieve-manifest.ts";
-import { startAdaptation } from "./handlers/start-adaptation.ts";
+import { adaptEndNode } from "./handlers/adaptation.ts";
 import { searchJSONPath } from "./handlers/search-json-path.ts";
 import { handleSSEConnection } from "./events/handle-sse-connection.ts";
 
@@ -73,7 +73,7 @@ export async function handleRequest(
   if (method === "POST" && adaptationMatch) {
     const thingId = adaptationMatch[1]; // Extract ID from path
     const body = await req.json();
-    return await startAdaptation(connectors, thingId, body);
+    return await adaptEndNode(connectors, thingId, body);
   }
 
   // --- /actions/searchJSONPath (GET /search/jsonpath?query={query}) ---

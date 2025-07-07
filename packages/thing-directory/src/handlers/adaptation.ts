@@ -13,7 +13,7 @@ export type AdaptationInput = {
   tm?: unknown;
 };
 
-export async function startAdaptation(
+export async function adaptEndNode(
   connectors: EdgeConnector[],
   thingId: string,
   { tmUrl: url, tm }: AdaptationInput,
@@ -61,7 +61,7 @@ export async function startAdaptation(
   // Start the adaptation process (is a placeholder, actual implementation needed)
   try {
     logger.debug({ thingId }, "Invoking connector to start adaptation");
-    await connector.startNodeAdaptation(thingId, URL.parse(url)!); //TODO: remove the option of passing a TM?
+    await connector.adaptEndNode(thingId, URL.parse(url)!); //TODO: remove the option of passing a TM?
     return new Response(
       `Adaptation started for Thing ID ${thingId} with model ${tm}`,
       { status: 200 },

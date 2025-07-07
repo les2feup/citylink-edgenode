@@ -22,6 +22,10 @@ export function assertActionInput(
     return assertOneOfInput(schema.oneOf, input);
   }
 
+  if (!schema.type) {
+    return; //TODO: investigate if this is valid
+  }
+
   switch (schema.type) {
     case "null":
       assertEquals(input, null, "Input must be null");
