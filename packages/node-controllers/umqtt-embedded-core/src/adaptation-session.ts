@@ -16,11 +16,11 @@ export type PromiseType = (typeof promiseTypes)[number];
 
 export class AdaptationSession {
   static readonly DEFAULT_TIMEOUTS = {
-    initTimeout: 5000,
-    writeTimeout: 5000,
-    deleteTimeout: 5000,
-    commitTimeout: 5000,
-    rollbackTimeout: 5000,
+    initTimeout: 60000,
+    writeTimeout: 60000,
+    deleteTimeout: 60000,
+    commitTimeout: 60000,
+    rollbackTimeout: 60000,
   };
 
   // deno-lint-ignore no-explicit-any
