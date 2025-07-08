@@ -14,9 +14,9 @@ export function defer<T>(): Deferred<T> {
   });
 
   let isSettled = false;
-  promise.finally(() => {
-    isSettled = true;
-  });
+  promise
+    .then(() => isSettled = true)
+    .catch(() => isSettled = true);
 
   return { promise, resolve, reject, isSettled };
 }

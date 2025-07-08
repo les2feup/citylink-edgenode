@@ -120,34 +120,18 @@ export class AdaptationSession {
   }
 
   abort(reason: string): void {
-    const error = new Error(reason);
-    this.#logger.error({ reason, error }, "❌ Aborting adaptation session");
+    this.#logger.error({ reason }, "❌ Aborting adaptation session");
 
-    for (const promise of Object.values(this.#promises)) {
-      if (!promise.isSettled) {
-        promise.reject(error);
+    for (const p of Object.values(this.#promises)) {
+      if (!p.isSettled) {
+        p.reject("Adaptation aborted");
+        p.promise.catch((err) => {
+          this.#logger.debug({ err }, "Promise rejected due to session abort");
+        });
       }
     }
 
     this.#isAborted = true;
-  }
-
-  #withStateTimeout<T>(
-    promise: Promise<T>,
-    context: string,
-    timeoutMs: number,
-    timeoutCB?: Callback,
-  ): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        setTimeout(() => {
-          this.#logger.error({ context }, `⏱️ Timeout during ${context}`);
-          timeoutCB?.();
-          reject(new Error(`Timeout in ${context}`));
-        }, timeoutMs);
-      }),
-    ]);
   }
 
   #assertAdaptationState(op: string): void {
@@ -163,38 +147,33 @@ export class AdaptationSession {
   async #performWithTimeout<T>(
     action: AsyncCallback,
     kind: PromiseType,
-    context: string,
     timeout: number,
-    timeoutCB?: Callback,
     createNew?: boolean,
   ): Promise<T> {
     if (this.#isAborted) {
       this.#logger.warn(
-        { promise: kind, context },
+        { promise: kind },
         "🔄 Attempted action on aborted session",
       );
       throw new Error("Adaptation session aborted");
     }
 
-    const deferred = this.#promises[kind];
-    if (deferred.isSettled) {
+    if (this.#promises[kind].isSettled) {
       if (createNew) this.#promises[kind] = defer();
       else throw new Error("Promise already settled");
     }
 
     await action();
-    return await this.#withStateTimeout(
-      this.#promises[kind].promise,
-      context,
-      timeout,
-      timeoutCB,
-    );
+
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      setTimeout(() => reject(`Adaptation ${kind} timeout`), timeout);
+    });
+
+    const p = this.#promises[kind].promise;
+    return Promise.race([p, timeoutPromise]);
   }
 
-  async init(
-    initAction: AsyncCallback,
-    timeoutCB?: Callback,
-  ): Promise<void> {
+  async init(initAction: AsyncCallback): Promise<void> {
     if (this.#fsm.is("Adaptation")) {
       this.#logger.warn("🔄 Node already in Adaptation state, skipping init.");
       return;
@@ -216,67 +195,45 @@ export class AdaptationSession {
     return await this.#performWithTimeout(
       initAction,
       "init",
-      "adaptationInit",
       this.#timeoutConfig.initTimeout,
-      timeoutCB,
     );
   }
 
-  async write(
-    writeAction: AsyncCallback,
-    timeoutCB?: Callback,
-  ): Promise<string> {
+  async write(writeAction: AsyncCallback): Promise<string> {
     this.#assertAdaptationState("write");
     return await this.#performWithTimeout(
       writeAction,
       "write",
-      "adaptationWrite",
       this.#timeoutConfig.writeTimeout,
-      timeoutCB,
       true, // Allow creating a new promise if already settled
     );
   }
 
-  async delete(
-    deleteAction: AsyncCallback,
-    timeoutCB?: Callback,
-  ): Promise<string[]> {
+  async delete(deleteAction: AsyncCallback): Promise<string[]> {
     this.#assertAdaptationState("delete");
     return await this.#performWithTimeout(
       deleteAction,
       "delete",
-      "adaptationDelete",
       this.#timeoutConfig.deleteTimeout,
-      timeoutCB,
       true, // Allow creating a new promise if already settled
     );
   }
 
-  async commit(
-    commitAction: AsyncCallback,
-    timeoutCB?: Callback,
-  ): Promise<void> {
+  async commit(commitAction: AsyncCallback): Promise<void> {
     this.#assertAdaptationState("commit");
     return await this.#performWithTimeout(
       commitAction,
       "commit",
-      "adaptationCommit",
       this.#timeoutConfig.commitTimeout,
-      timeoutCB,
     );
   }
 
-  async rollback(
-    rollbackAction: AsyncCallback,
-    timeoutCB?: Callback,
-  ): Promise<void> {
+  async rollback(rollbackAction: AsyncCallback): Promise<void> {
     this.#assertAdaptationState("rollback");
     return await this.#performWithTimeout(
       rollbackAction,
       "rollback",
-      "adaptationRollback",
       this.#timeoutConfig.rollbackTimeout,
-      timeoutCB,
     );
   }
 }

@@ -189,13 +189,10 @@ export class uMQTTCoreController implements EndNodeController {
       await this.#adaptationManager.adapt(source, tm);
       this.#node = newNode;
     } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.#adaptationManager.abort(errorMsg);
       this.#fsm.transition("Unknown");
-      const message = err instanceof Error ? err.message : String(err);
-      this.#logger.error(
-        { err },
-        "❌ Adaptation failed, transitioning to Unknown state",
-      );
-      throw new Error(`Adaptation failed: ${message}`);
+      throw err;
     }
   }
 
@@ -374,7 +371,11 @@ export class uMQTTCoreController implements EndNodeController {
       case "UNDEF":
         return this.#onCoreStatusUndef();
       case "ADAPT":
-        return this.#onCoreStatusAdapt();
+        return this.#onCoreStatusAdapt().catch((err: unknown) => {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          this.#adaptationManager.abort(errorMsg);
+          this.#fsm.transition("Unknown");
+        });
       case "APP":
         return this.#onCoreStatusApp();
       default:
@@ -401,7 +402,7 @@ export class uMQTTCoreController implements EndNodeController {
     this.#fsm.transition("Unknown");
   }
 
-  #onCoreStatusAdapt() {
+  async #onCoreStatusAdapt() {
     if (!(this.#fsm.is("Restarting") || this.#fsm.is("Unknown"))) {
       this.#logger.error(
         { state: this.#fsm.state },
@@ -411,23 +412,17 @@ export class uMQTTCoreController implements EndNodeController {
 
     this.#fsm.transition("Adaptation");
     if (this.#adaptationManager.resolve("init")) {
+      this.#logger.info("🔄 Adaptation session started successfully.");
       return;
     }
 
     this.#logger.warn("Spontaneous End Node adaptation detected.");
-    this.#node.fetchSource().then((files) => {
-      this.#adaptationManager.adapt(
-        files,
-        undefined, // No Thing Model URL provided, use current node's source
-        true, // Force new adaptation session
-        "Spontaneous adaptation detected",
-      );
-    }).catch((err) => {
-      this.#logger.error(
-        { error: err },
-        "❌ Spontaneous adaptation failed",
-      );
-    });
+    const files = await this.#node.fetchSource();
+    /* deno-fmt-ignore */
+    await this.#adaptationManager.adapt(
+      files, undefined, true, 
+      "Forcing spontaneous adaptation",
+    );
   }
 
   #onCoreStatusApp() {
@@ -450,7 +445,11 @@ export class uMQTTCoreController implements EndNodeController {
     const msg = message.toString();
     switch (affordanceName) {
       case "adapt/report":
-        this.#assertAdaptationState("adapt/report");
+        if (!this.#fsm.is("Adaptation")) {
+          throw new Error(
+            `InvalidState: Cannot handle ADAPT report in ${this.#fsm.state} state`,
+          );
+        }
         this.#logger.info(
           { affordanceName },
           "Received ADAPT report event",
@@ -599,17 +598,5 @@ export class uMQTTCoreController implements EndNodeController {
       input,
       prefix: "citylink:embeddedCore",
     });
-  }
-
-  #assertAdaptationState(op: string): void {
-    if (!this.#fsm.is("Adaptation")) {
-      this.#logger.error(
-        { operation: op, state: this.#fsm.state },
-        "⚠️ Cannot perform adaptation operation outside of Adaptation state",
-      );
-      throw new Error(
-        "InvalidState: Cannot perform adaptation operation outside of Adaptation state",
-      );
-    }
   }
 }

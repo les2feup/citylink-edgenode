@@ -22,15 +22,13 @@ export class AdaptationManager {
     "citylink/core.mpy",
     "config/config.json",
   ];
+
   #logger: ReturnType<typeof createLogger>;
   #replaceSet = new Set<string>();
   #handlers: AdaptationActionHandlers;
   #fsm: ControllerFSM;
   #session?: AdaptationSession;
   #timeoutConfig?: Partial<typeof AdaptationSession.DEFAULT_TIMEOUTS>;
-  #timeoutCallback = () => {
-    this.#fsm.transition("Unknown");
-  };
   #commited: boolean = false;
   #rolledback: boolean = false;
 
@@ -102,24 +100,14 @@ export class AdaptationManager {
       this.#logger.error({ error }, "❌ Adaptation failed, rolling back...");
 
       try {
-        await this.#session!.rollback(
-          () => this.#handlers.rollbackAction(),
-          this.#timeoutCallback,
-        );
+        await this.#session?.rollback(() => this.#handlers.rollbackAction());
         this.#logger.info("✅ Rollback completed successfully.");
         this.#rolledback = true;
-      } catch (rollbackError) {
-        this.#logger.error(
-          { rollbackError },
-          "⚠️ Rollback failed after adaptation failure.",
-        );
+      } catch (error) {
+        this.#logger.error({ error }, "⚠️ Adaptation rollback failed.");
       }
 
-      throw new Error(
-        `Adaptation failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+      throw error;
     }
   }
 
@@ -148,18 +136,10 @@ export class AdaptationManager {
   ): Promise<void> {
     const session = this.#session!;
 
-    await session.init(
-      () => this.#handlers.initAction(tmURL!),
-      this.#timeoutCallback,
-    );
-
+    await session.init(() => this.#handlers.initAction(tmURL!));
     await this.#deleteOldFiles(source);
     await this.writeNewFiles(source);
-
-    await session.commit(
-      () => this.#handlers.commitAction(),
-      this.#timeoutCallback,
-    );
+    await session.commit(() => this.#handlers.commitAction());
   }
 
   validateSource(source: SourceFile[]): [boolean, string?] {
@@ -183,9 +163,8 @@ export class AdaptationManager {
       "📤 Deleting outdated files...",
     );
     for (const path of toDelete) {
-      await this.#session!.delete(
-        () => this.#handlers.deleteAction(path, false),
-        this.#timeoutCallback,
+      await this.#session!.delete(() =>
+        this.#handlers.deleteAction(path, false)
       );
     }
   }
@@ -199,7 +178,6 @@ export class AdaptationManager {
     for (const file of source) {
       const written = await this.#session!.write(
         () => this.#handlers.writeAction(file),
-        this.#timeoutCallback,
       );
 
       if (written !== file.path) {

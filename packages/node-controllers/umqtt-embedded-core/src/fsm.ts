@@ -37,7 +37,7 @@ export class ControllerFSM {
         { from: this.#state, to },
         "Invalid transition attempted",
       );
-      throw new Error("InvalidTransition");
+      return;
     }
 
     this.#logger.info({ from: this.#state, to }, "Transitioning state");
