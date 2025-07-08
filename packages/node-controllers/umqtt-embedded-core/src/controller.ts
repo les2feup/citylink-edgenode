@@ -30,26 +30,18 @@ import {
   CoreStatusValues,
 } from "./types/states.ts";
 import { AdaptReport } from "./types/zod/adapt-report.ts";
-import { defer, settleAllPromises } from "./utils/async-utils.ts";
+import { settleAllPromises } from "./utils/async-utils.ts";
 
 export class uMQTTCoreController implements EndNodeController {
   #logger: ReturnType<typeof createLogger>;
 
-  #fms: ControllerFSM;
+  #fsm: ControllerFSM;
   #mqttManager: MQTTClientManager;
   #adaptationManager: AdaptationManager;
 
   #compatible: ControllerCompatibleTM;
   #topicPrefix: string;
   #node: EndNode;
-
-  #pending: {
-    adaptationInit?: ReturnType<typeof defer<void>>;
-    adaptationWrite?: ReturnType<typeof defer<string>>;
-    adaptationDelete?: ReturnType<typeof defer<string[]>>;
-    adaptationCommit?: ReturnType<typeof defer<void>>;
-    adaptationRollback?: ReturnType<typeof defer<void>>;
-  } = {};
 
   #willRestart: boolean = false;
 
@@ -69,7 +61,7 @@ export class uMQTTCoreController implements EndNodeController {
       node: this.#node.id,
     });
 
-    this.#fms = new ControllerFSM(
+    this.#fsm = new ControllerFSM(
       controllerStateTransitions,
       { node: this.#node.id },
     );
@@ -87,13 +79,15 @@ export class uMQTTCoreController implements EndNodeController {
     );
 
     this.#adaptationManager = new AdaptationManager(
+      this.#fsm,
       {
-        adaptationInit: this.#adaptationInit.bind(this),
-        adaptationWrite: this.#adaptationWrite.bind(this),
-        adaptationDelete: this.#adaptationDelete.bind(this),
-        adaptationCommit: this.#adaptationCommit.bind(this),
-        adaptationRollback: this.#adaptationRollback.bind(this),
+        initAction: this.#adaptationInit.bind(this),
+        writeAction: this.#adaptationWrite.bind(this),
+        deleteAction: this.#adaptationDelete.bind(this),
+        commitAction: this.#adaptationCommit.bind(this),
+        rollbackAction: this.#adaptationRollback.bind(this),
       },
+      { node: this.#node.id },
     );
   }
 
@@ -125,13 +119,13 @@ export class uMQTTCoreController implements EndNodeController {
   }
 
   stop(): void | Promise<void> {
-    if (this.#fms.is("Adaptation")) {
+    if (this.#fsm.is("Adaptation")) {
       this.#logger.warn("Stopping controller while in Adaptation state.");
     }
 
     this.#logger.info("Stopping uMQTT-Core Controller...");
     this.#mqttManager.disconnect();
-    this.#fms.transition("Unknown");
+    this.#fsm.transition("Unknown");
   }
 
   #prepareNewEndNode(tm: URL): Promise<EndNode> {
@@ -153,14 +147,14 @@ export class uMQTTCoreController implements EndNodeController {
   }
 
   async adaptEndNode(tm: URL): Promise<void> {
-    if (!this.#fms.is("Application")) {
+    if (!this.#fsm.is("Application")) {
       throw new Error(
-        `InvalidState: Cannot start adaptation in ${this.#fms.state} state`,
+        `InvalidState: Cannot start adaptation in ${this.#fsm.state} state`,
       );
     }
 
     this.#logger.info("Starting adaptation process...");
-    this.#fms.transition("AdaptationPrep");
+    this.#fsm.transition("AdaptationPrep");
 
     try {
       const newNode = await this.#prepareNewEndNode(tm);
@@ -168,7 +162,7 @@ export class uMQTTCoreController implements EndNodeController {
       await this.#adaptationManager.adapt(source, tm);
       this.#node = newNode;
     } catch (err: unknown) {
-      this.#fms.transition("Unknown");
+      this.#fsm.transition("Unknown");
       const message = err instanceof Error ? err.message : String(err);
       this.#logger.error(
         { err },
@@ -367,7 +361,7 @@ export class uMQTTCoreController implements EndNodeController {
       this.#logger.info(
         "Core will restart, transitioning to Restarting state",
       );
-      this.#fms.transition("Restarting");
+      this.#fsm.transition("Restarting");
       this.#willRestart = false; // Reset the restart flag
       return;
     }
@@ -377,19 +371,13 @@ export class uMQTTCoreController implements EndNodeController {
     );
 
     this.#rejectAllPending("End Node is in UNDEF state");
-    this.#fms.transition("Unknown");
-  }
-
-  #rejectAllPending(reason: string) {
-    const error = new Error(reason);
-    Object.values(this.#pending).forEach((p) => p.reject(error));
-    this.#pending = {};
+    this.#fsm.transition("Unknown");
   }
 
   #onCoreStatusAdapt() {
-    if (!(this.#fms.is("Restarting") || this.#fms.is("Unknown"))) {
+    if (!(this.#fsm.is("Restarting") || this.#fsm.is("Unknown"))) {
       this.#logger.error(
-        { state: this.#fms.state },
+        { state: this.#fsm.state },
         "⚠️ Unexpected ADAPT status received",
       );
 
@@ -398,7 +386,7 @@ export class uMQTTCoreController implements EndNodeController {
       );
     }
 
-    this.#fms.transition("Adaptation");
+    this.#fsm.transition("Adaptation");
 
     if (this.#pending.adaptationInit) {
       this.#logger.info(
@@ -421,9 +409,9 @@ export class uMQTTCoreController implements EndNodeController {
   }
 
   #onCoreStatusApp() {
-    if (!this.#fms.is("Restarting") && !this.#fms.is("Unknown")) {
+    if (!this.#fsm.is("Restarting") && !this.#fsm.is("Unknown")) {
       this.#logger.error(
-        { state: this.#fms.state },
+        { state: this.#fsm.state },
         "⚠️ Unexpected APP status received",
       );
 
@@ -432,7 +420,7 @@ export class uMQTTCoreController implements EndNodeController {
       );
     }
 
-    this.#fms.transition("Application");
+    this.#fsm.transition("Application");
 
     if (this.#pending.adaptationCommit) {
       this.#logger.info(
@@ -478,84 +466,30 @@ export class uMQTTCoreController implements EndNodeController {
   // ------- Adaptation methods --------
 
   async #adaptationInit(tmURL?: URL): Promise<void> {
-    if (this.#fms.is("Adaptation")) {
-      this.#logger.warn(
-        "Node is already in Adaptation state, skipping adaptationInit.",
-      );
-      return;
-    }
-
-    if (!this.#fms.is("AdaptationPrep")) {
-      this.#logger.error(
-        { state: this.#fms.state },
-        "❌ Cannot start adaptationInit outside of AdaptationPrep state",
-      );
-      throw new Error(
-        `InvalidState: Cannot start adaptationInit in ${this.#fms.state} state`,
-      );
-    }
-
     if (!tmURL) {
-      this.#logger.error("❌ No Thing Model URL provided for adaptationInit.");
-      throw new Error("InvalidArgument: tmURL is required for adaptationInit");
+      throw new Error("Adaptation requires a Thing Model URL");
     }
-
     await this.#invokeCoreAction("adaptInit", tmURL.toString());
-
     this.#willRestart = true;
-    this.#pending.adaptationInit = defer<void>();
-    return await this.#withStateTimeout(
-      this.#pending.adaptationInit.promise,
-      "AdaptationInit Timeout",
-    );
   }
 
-  async #adaptationWrite(file: SourceFile): Promise<string> {
-    this.#assertAdaptationState("adaptationWrite");
-
+  async #adaptationWrite(file: SourceFile): Promise<void> {
     const input = AdaptationManager.makeWriteInput(file);
     await this.#invokeCoreAction("adaptWrite", input);
-
-    this.#pending.adaptationWrite = defer<string>();
-    return await this.#withStateTimeout(
-      this.#pending.adaptationWrite.promise,
-      "AdaptationWrite Timeout",
-    );
   }
 
-  async #adaptationDelete(path: string, recursive: boolean): Promise<string[]> {
-    this.#assertAdaptationState("adaptationDelete");
+  async #adaptationDelete(path: string, recursive: boolean): Promise<void> {
     await this.#invokeCoreAction("adaptDelete", { path, recursive });
-
-    this.#pending.adaptationDelete = defer<string[]>();
-    return await this.#withStateTimeout(
-      this.#pending.adaptationDelete.promise,
-      "AdaptationDelete Timeout",
-    );
   }
 
   async #adaptationCommit(): Promise<void> {
-    this.#assertAdaptationState("adaptationCommit");
     await this.#invokeCoreAction("adaptFinish", true); // true indicates commit
-
     this.#willRestart = true;
-    this.#pending.adaptationCommit = defer<void>();
-    return await this.#withStateTimeout(
-      this.#pending.adaptationCommit.promise,
-      "AdaptationCommit Timeout",
-    );
   }
 
   async #adaptationRollback(): Promise<void> {
-    this.#assertAdaptationState("adaptationRollback");
     await this.#invokeCoreAction("adaptFinish", false); // false indicates rollback
-
     this.#willRestart = true;
-    this.#pending.adaptationRollback = defer<void>();
-    return await this.#withStateTimeout(
-      this.#pending.adaptationRollback.promise,
-      "AdaptationRollback Timeout",
-    );
   }
 
   #handleApplicationAffordance(
@@ -570,7 +504,7 @@ export class uMQTTCoreController implements EndNodeController {
       `Handling application ${type}`,
     );
 
-    if (this.#fms.is("Adaptation")) {
+    if (this.#fsm.is("Adaptation")) {
       this.#logger.error(
         { affordanceName },
         `⚠️ Received application ${type} message while in Adaptation state`,
@@ -581,13 +515,13 @@ export class uMQTTCoreController implements EndNodeController {
       );
     }
 
-    if (this.#fms.is("Unknown") || this.#fms.is("Restarting")) {
+    if (this.#fsm.is("Unknown") || this.#fsm.is("Restarting")) {
       this.#logger.warn(
-        { affordanceName, state: this.#fms.state },
+        { affordanceName, state: this.#fsm.state },
         `Unexpected application ${type} message received`,
       );
 
-      this.#fms.transition("Application");
+      this.#fsm.transition("Application");
     }
   }
 
@@ -693,9 +627,9 @@ export class uMQTTCoreController implements EndNodeController {
   }
 
   #assertAdaptationState(op: string): void {
-    if (!this.#fms.is("Adaptation")) {
+    if (!this.#fsm.is("Adaptation")) {
       this.#logger.error(
-        { operation: op, state: this.#fms.state },
+        { operation: op, state: this.#fsm.state },
         "⚠️ Cannot perform adaptation operation outside of Adaptation state",
       );
       throw new Error(
@@ -717,7 +651,7 @@ export class uMQTTCoreController implements EndNodeController {
             { context },
             `⏱️ Timeout waiting for End Node during ${context}, transitioning to Unknown.`,
           );
-          this.#fms.transition("Unknown");
+          this.#fsm.transition("Unknown");
           reject(new Error(`Timeout in ${context}`));
         }, timeoutMs)
       ),

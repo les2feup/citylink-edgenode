@@ -2,18 +2,15 @@ import type { SourceFile } from "@citylink-edgenode/core";
 import { encodeContentBase64 } from "./utils/content-encoding.ts";
 import { crc32 } from "node:zlib";
 import { createLogger } from "common/log";
+import type { ControllerFSM } from "./fsm.ts";
+import { AdaptationSession } from "./adaptation-session.ts";
 
-export type AdaptationHandlers = {
-  adaptationInit(tmURL?: URL): Promise<void>;
-  adaptationWrite(file: SourceFile): Promise<string>;
-  adaptationDelete(path: string, recursive: boolean): Promise<string[]>;
-  adaptationCommit(): Promise<void>;
-  adaptationRollback(): Promise<void>;
-};
-
-export type AdaptationResult = {
-  written: string[];
-  deleted: string[];
+export type AdaptationActionHandlers = {
+  initAction(tmURL?: URL): Promise<void>;
+  writeAction(file: SourceFile): Promise<void>;
+  deleteAction(path: string, recursive: boolean): Promise<void>;
+  commitAction(): Promise<void>;
+  rollbackAction(): Promise<void>;
 };
 
 export class AdaptationManager {
@@ -27,13 +24,23 @@ export class AdaptationManager {
   ];
   #logger: ReturnType<typeof createLogger>;
   #replaceSet = new Set<string>();
-  #handlers: AdaptationHandlers;
+  #handlers: AdaptationActionHandlers;
+  #fsm: ControllerFSM;
+  #session?: AdaptationSession;
+  #timeoutConfig?: Partial<typeof AdaptationSession.DEFAULT_TIMEOUTS>;
+  #timeoutCallback = () => {
+    this.#fsm.transition("Unknown");
+  };
 
   constructor(
-    handlers: AdaptationHandlers,
+    fsm: ControllerFSM,
+    handlers: AdaptationActionHandlers,
     loggerContext?: Record<string, unknown>,
+    timeoutConfig?: Partial<typeof AdaptationSession.DEFAULT_TIMEOUTS>,
   ) {
+    this.#fsm = fsm;
     this.#handlers = handlers;
+    this.#timeoutConfig = timeoutConfig;
     this.#logger = createLogger(
       "uMQTT-Core-Controller",
       "AdaptationManager",
@@ -41,30 +48,65 @@ export class AdaptationManager {
     );
   }
 
-  get adaptationSet(): Set<string> {
-    return this.#replaceSet;
+  get session(): Readonly<AdaptationSession> | undefined {
+    return this.#session;
   }
 
-  async adapt(source: SourceFile[], tmURL?: URL): Promise<void> {
+  abortSession(reason: string): void {
+    if (!this.#session) {
+      this.#logger.warn("❗️ No active adaptation session to abort.");
+      return;
+    }
+
+    this.#logger.info(
+      { reason: reason ?? "No reason provided" },
+      "🔄 Aborting current adaptation session...",
+    );
+    this.#session.abort(reason);
+    this.#session = undefined;
+  }
+
+  async adapt(
+    source: SourceFile[],
+    tmURL?: URL,
+    abortPrevious?: boolean,
+    abortReason?: string,
+  ): Promise<void> {
     const [valid, errorMsg] = this.validateSource(source);
     if (!valid) throw new Error(errorMsg!);
+
+    if (this.#session) {
+      if (abortPrevious) {
+        this.#logger.warn(
+          "🔄 Aborting previous adaptation session before starting a new one.",
+        );
+        this.#session.abort(abortReason ?? "Forcing new adaptation session.");
+      } else {
+        throw new Error("❗️ An adaptation session is already in progress.");
+      }
+    }
+
+    this.#session = new AdaptationSession(
+      this.#fsm,
+      this.#logger,
+      this.#timeoutConfig,
+    );
 
     try {
       this.#logger.info(
         { files: source.map((f) => f.path) },
         "🔄 Starting adaptation...",
       );
-
-      await this.#handlers.adaptationInit(tmURL);
-      await this.deleteOldFiles(source);
-      await this.writeNewFiles(source);
-      await this.#handlers.adaptationCommit();
+      await this.#performAdaptation(source, tmURL);
       this.#logger.info("✅ Adaptation completed successfully.");
     } catch (error) {
       this.#logger.error({ error }, "❌ Adaptation failed, rolling back...");
 
       try {
-        await this.#handlers.adaptationRollback();
+        await this.#session!.rollback(
+          () => this.#handlers.rollbackAction(),
+          this.#timeoutCallback,
+        );
       } catch (rollbackError) {
         this.#logger.error(
           { rollbackError },
@@ -80,6 +122,26 @@ export class AdaptationManager {
     }
   }
 
+  async #performAdaptation(
+    source: SourceFile[],
+    tmURL?: URL,
+  ): Promise<void> {
+    const session = this.#session!;
+
+    await session.init(
+      () => this.#handlers.initAction(tmURL!),
+      this.#timeoutCallback,
+    );
+
+    await this.#deleteOldFiles(source);
+    await this.writeNewFiles(source);
+
+    await session.commit(
+      () => this.#handlers.commitAction(),
+      this.#timeoutCallback,
+    );
+  }
+
   validateSource(source: SourceFile[]): [boolean, string?] {
     const hasMain = source.some((f) =>
       f.path === "main.py" || f.path === "main.mpy"
@@ -89,7 +151,7 @@ export class AdaptationManager {
       : [false, "❗️ Source must include 'main.py' or 'main.mpy'."];
   }
 
-  private async deleteOldFiles(source: SourceFile[]) {
+  async #deleteOldFiles(source: SourceFile[]) {
     const newPaths = new Set(source.map((f) => f.path));
     const toDelete = new Set<string>([...this.#replaceSet]).difference(
       newPaths,
@@ -101,7 +163,10 @@ export class AdaptationManager {
       "📤 Deleting outdated files...",
     );
     for (const path of toDelete) {
-      await this.#handlers.adaptationDelete(path, false);
+      await this.#session!.delete(
+        () => this.#handlers.deleteAction(path, false),
+        this.#timeoutCallback,
+      );
     }
   }
 
@@ -112,7 +177,10 @@ export class AdaptationManager {
     );
 
     for (const file of source) {
-      const written = await this.#handlers.adaptationWrite(file);
+      const written = await this.#session!.write(
+        () => this.#handlers.writeAction(file),
+        this.#timeoutCallback,
+      );
 
       if (written !== file.path) {
         this.#logger.warn(

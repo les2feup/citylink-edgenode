@@ -24,6 +24,8 @@ export const logger = pino(
     stream,
 );
 
+export type Logger = ReturnType<typeof createLogger>;
+
 export function createLogger(
     packageName: string,
     moduleName: string,
@@ -35,4 +37,3 @@ export function createLogger(
         ...context,
     });
 }
-

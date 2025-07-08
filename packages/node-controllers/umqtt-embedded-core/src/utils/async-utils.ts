@@ -1,11 +1,24 @@
-export function defer<T>() {
+export type Deferred<T> = {
+  readonly promise: Promise<T>;
+  readonly resolve: (v: T) => void;
+  readonly reject: (e?: unknown) => void;
+  readonly isSettled?: boolean;
+};
+
+export function defer<T>(): Deferred<T> {
   let resolve!: (v: T) => void;
   let reject!: (e?: unknown) => void;
   const promise = new Promise<T>((res, rej) => {
     resolve = res;
     reject = rej;
   });
-  return { promise, resolve, reject };
+
+  let isSettled = false;
+  promise.finally(() => {
+    isSettled = true;
+  });
+
+  return { promise, resolve, reject, isSettled };
 }
 
 export function settleAllPromises<T>(
