@@ -3,7 +3,7 @@ import { encodeContentBase64 } from "./utils/content-encoding.ts";
 import { crc32 } from "node:zlib";
 import { createLogger } from "common/log";
 import type { ControllerFSM } from "./fsm.ts";
-import { AdaptationSession } from "./adaptation-session.ts";
+import { AdaptationSession, type PromiseType } from "./adaptation-session.ts";
 
 export type AdaptationActionHandlers = {
   initAction(tmURL?: URL): Promise<void>;
@@ -31,6 +31,8 @@ export class AdaptationManager {
   #timeoutCallback = () => {
     this.#fsm.transition("Unknown");
   };
+  #commited: boolean = false;
+  #rolledback: boolean = false;
 
   constructor(
     fsm: ControllerFSM,
@@ -48,22 +50,16 @@ export class AdaptationManager {
     );
   }
 
-  get session(): Readonly<AdaptationSession> | undefined {
-    return this.#session;
+  resolve(promise: PromiseType, data?: unknown): boolean {
+    return this.#session?.resolve(promise, data) ?? false;
   }
 
-  abortSession(reason: string): void {
-    if (!this.#session) {
-      this.#logger.warn("❗️ No active adaptation session to abort.");
-      return;
-    }
+  reject(promise: PromiseType, reason: string): boolean {
+    return this.#session?.reject(promise, reason) ?? false;
+  }
 
-    this.#logger.info(
-      { reason: reason ?? "No reason provided" },
-      "🔄 Aborting current adaptation session...",
-    );
-    this.#session.abort(reason);
-    this.#session = undefined;
+  abort(reason: string): boolean {
+    return this.#session?.abort(reason) ?? false;
   }
 
   async adapt(
@@ -91,6 +87,8 @@ export class AdaptationManager {
       this.#logger,
       this.#timeoutConfig,
     );
+    this.#commited = false;
+    this.#rolledback = false;
 
     try {
       this.#logger.info(
@@ -98,6 +96,7 @@ export class AdaptationManager {
         "🔄 Starting adaptation...",
       );
       await this.#performAdaptation(source, tmURL);
+      this.#commited = true;
       this.#logger.info("✅ Adaptation completed successfully.");
     } catch (error) {
       this.#logger.error({ error }, "❌ Adaptation failed, rolling back...");
@@ -107,6 +106,8 @@ export class AdaptationManager {
           () => this.#handlers.rollbackAction(),
           this.#timeoutCallback,
         );
+        this.#logger.info("✅ Rollback completed successfully.");
+        this.#rolledback = true;
       } catch (rollbackError) {
         this.#logger.error(
           { rollbackError },
@@ -120,6 +121,25 @@ export class AdaptationManager {
         }`,
       );
     }
+  }
+
+  adaptationFinished(): boolean {
+    if (!this.#session) {
+      this.#logger.warn("🔄 No active adaptation session to finish.");
+      return false;
+    }
+
+    this.#logger.info("🔄 Finalizing adaptation session...");
+
+    const success = (() => {
+      if (this.#commited) return this.#session!.resolve("commit");
+      if (this.#rolledback) return this.#session!.resolve("rollback");
+      return false;
+    })();
+
+    this.#logger.info("✅ Adaptation session finished successfully.");
+    this.#session = undefined;
+    return success;
   }
 
   async #performAdaptation(

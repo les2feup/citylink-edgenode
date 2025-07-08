@@ -91,6 +91,33 @@ export class uMQTTCoreController implements EndNodeController {
     );
   }
 
+  async #adaptationInit(tmURL?: URL): Promise<void> {
+    if (!tmURL) {
+      throw new Error("Adaptation requires a Thing Model URL");
+    }
+    await this.#invokeCoreAction("adaptInit", tmURL.toString());
+    this.#willRestart = true;
+  }
+
+  async #adaptationWrite(file: SourceFile): Promise<void> {
+    const input = AdaptationManager.makeWriteInput(file);
+    await this.#invokeCoreAction("adaptWrite", input);
+  }
+
+  async #adaptationDelete(path: string, recursive: boolean): Promise<void> {
+    await this.#invokeCoreAction("adaptDelete", { path, recursive });
+  }
+
+  async #adaptationCommit(): Promise<void> {
+    await this.#invokeCoreAction("adaptFinish", true); // true indicates commit
+    this.#willRestart = true;
+  }
+
+  async #adaptationRollback(): Promise<void> {
+    await this.#invokeCoreAction("adaptFinish", false); // false indicates rollback
+    this.#willRestart = true;
+  }
+
   // ------- Controller Interface methods --------
 
   start(): void | Promise<void> {
@@ -370,7 +397,7 @@ export class uMQTTCoreController implements EndNodeController {
       "End Node status is UNDEF but no restart scheduled. End Node may be disconnected or in an invalid state.",
     );
 
-    this.#rejectAllPending("End Node is in UNDEF state");
+    this.#adaptationManager.abort("End Node is in UNDEF state");
     this.#fsm.transition("Unknown");
   }
 
@@ -380,32 +407,27 @@ export class uMQTTCoreController implements EndNodeController {
         { state: this.#fsm.state },
         "⚠️ Unexpected ADAPT status received",
       );
-
-      this.#rejectAllPending(
-        "Unexpected ADAPT status received",
-      );
     }
 
     this.#fsm.transition("Adaptation");
-
-    if (this.#pending.adaptationInit) {
-      this.#logger.info(
-        "End Node ready for adaptation, resolving init promise.",
-      );
-      this.#pending.adaptationInit.resolve();
-      delete this.#pending.adaptationInit;
-    } else {
-      this.#logger.warn("Spontaneous End Node adaptation detected.");
-
-      this.#node.fetchSource().then((files) => {
-        this.#adaptationManager.adapt(files);
-      }).catch((err) => {
-        this.#logger.error(
-          { error: err },
-          "❌ Failed to adapt End Node after spontaneous Adaptation state",
-        );
-      });
+    if (this.#adaptationManager.resolve("init")) {
+      return;
     }
+
+    this.#logger.warn("Spontaneous End Node adaptation detected.");
+    this.#node.fetchSource().then((files) => {
+      this.#adaptationManager.adapt(
+        files,
+        undefined, // No Thing Model URL provided, use current node's source
+        true, // Force new adaptation session
+        "Spontaneous adaptation detected",
+      );
+    }).catch((err) => {
+      this.#logger.error(
+        { error: err },
+        "❌ Spontaneous adaptation failed",
+      );
+    });
   }
 
   #onCoreStatusApp() {
@@ -414,29 +436,12 @@ export class uMQTTCoreController implements EndNodeController {
         { state: this.#fsm.state },
         "⚠️ Unexpected APP status received",
       );
-
-      this.#rejectAllPending(
-        "Unexpected APP status received",
-      );
     }
 
     this.#fsm.transition("Application");
-
-    if (this.#pending.adaptationCommit) {
-      this.#logger.info(
-        "End Node adaptation committed successfully, resolving commit promise.",
-      );
-      this.#pending.adaptationCommit.resolve();
-      delete this.#pending.adaptationCommit;
-    } else if (this.#pending.adaptationRollback) {
-      this.#logger.info(
-        "End Node rolled back adaptation, resolving rollback promise.",
-      );
-      this.#pending.adaptationRollback.resolve();
-      delete this.#pending.adaptationRollback;
-    } else {
-      this.#logger.debug(
-        "Nothing to resolve, End Node is in Application state.",
+    if (!this.#adaptationManager.adaptationFinished()) {
+      this.#adaptationManager.abort(
+        "Adaptation session not finished but core status is APP",
       );
     }
   }
@@ -461,35 +466,6 @@ export class uMQTTCoreController implements EndNodeController {
           "⚠️ Unknown core event",
         );
     }
-  }
-
-  // ------- Adaptation methods --------
-
-  async #adaptationInit(tmURL?: URL): Promise<void> {
-    if (!tmURL) {
-      throw new Error("Adaptation requires a Thing Model URL");
-    }
-    await this.#invokeCoreAction("adaptInit", tmURL.toString());
-    this.#willRestart = true;
-  }
-
-  async #adaptationWrite(file: SourceFile): Promise<void> {
-    const input = AdaptationManager.makeWriteInput(file);
-    await this.#invokeCoreAction("adaptWrite", input);
-  }
-
-  async #adaptationDelete(path: string, recursive: boolean): Promise<void> {
-    await this.#invokeCoreAction("adaptDelete", { path, recursive });
-  }
-
-  async #adaptationCommit(): Promise<void> {
-    await this.#invokeCoreAction("adaptFinish", true); // true indicates commit
-    this.#willRestart = true;
-  }
-
-  async #adaptationRollback(): Promise<void> {
-    await this.#invokeCoreAction("adaptFinish", false); // false indicates rollback
-    this.#willRestart = true;
   }
 
   #handleApplicationAffordance(
@@ -564,13 +540,12 @@ export class uMQTTCoreController implements EndNodeController {
 
   #processAdaptResult(result: AdaptReport["result"]) {
     if (result.error) {
-      const error = new Error(result.message);
-      this.#pending.adaptationWrite?.reject(error);
-      this.#pending.adaptationDelete?.reject(error);
+      this.#adaptationManager.reject("write", result.message);
+      this.#adaptationManager.reject("delete", result.message);
     } else if (result.written) {
-      this.#pending.adaptationWrite?.resolve(result.written);
+      this.#adaptationManager.resolve("write", result.written);
     } else if (result.deleted) {
-      this.#pending.adaptationDelete?.resolve(result.deleted);
+      this.#adaptationManager.resolve("delete", result.deleted);
     } else {
       this.#logger.error({ result }, "❌ Unknown ADAPT report result format");
     }
@@ -636,25 +611,5 @@ export class uMQTTCoreController implements EndNodeController {
         "InvalidState: Cannot perform adaptation operation outside of Adaptation state",
       );
     }
-  }
-
-  #withStateTimeout<T>(
-    promise: Promise<T>,
-    context: string,
-    timeoutMs = 60000,
-  ): Promise<T> {
-    return Promise.race([
-      promise,
-      new Promise<T>((_, reject) =>
-        setTimeout(() => {
-          this.#logger.error(
-            { context },
-            `⏱️ Timeout waiting for End Node during ${context}, transitioning to Unknown.`,
-          );
-          this.#fsm.transition("Unknown");
-          reject(new Error(`Timeout in ${context}`));
-        }, timeoutMs)
-      ),
-    ]);
   }
 }

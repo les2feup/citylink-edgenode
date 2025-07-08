@@ -65,7 +65,7 @@ export class AdaptationSession {
         { promise: kind },
         "🔄 Attempted resolve on already settled promise",
       );
-      return false;
+      return true;
     }
 
     switch (kind) {
