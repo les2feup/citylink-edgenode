@@ -29,8 +29,6 @@ export class AdaptationManager {
   #fsm: ControllerFSM;
   #session?: AdaptationSession;
   #timeoutConfig?: Partial<typeof AdaptationSession.DEFAULT_TIMEOUTS>;
-  #commited: boolean = false;
-  #rolledback: boolean = false;
 
   constructor(
     fsm: ControllerFSM,
@@ -60,6 +58,16 @@ export class AdaptationManager {
     return this.#session?.abort(reason) ?? false;
   }
 
+  sessionFinished(): boolean {
+    if (!this.#session) {
+      this.#logger.warn("🔄 No active adaptation session to finish.");
+      return true;
+    }
+
+    this.#logger.info("🔄 Finalizing adaptation session...");
+    return this.#session.finish();
+  }
+
   async adapt(
     source: SourceFile[],
     tmURL?: URL,
@@ -80,21 +88,12 @@ export class AdaptationManager {
       }
     }
 
-    this.#session = new AdaptationSession(
-      this.#fsm,
-      this.#logger,
-      this.#timeoutConfig,
-    );
-    this.#commited = false;
-    this.#rolledback = false;
+    this.#session = new AdaptationSession(this.#logger, this.#timeoutConfig);
 
     try {
-      this.#logger.info(
-        { files: source.map((f) => f.path) },
-        "🔄 Starting adaptation...",
-      );
+      const files = source.map((f) => f.path);
+      this.#logger.info({ files }, "🔄 Starting adaptation...");
       await this.#performAdaptation(source, tmURL);
-      this.#commited = true;
       this.#logger.info("✅ Adaptation completed successfully.");
     } catch (error) {
       this.#logger.error({ error }, "❌ Adaptation failed, rolling back...");
@@ -102,7 +101,6 @@ export class AdaptationManager {
       try {
         await this.#session?.rollback(() => this.#handlers.rollbackAction());
         this.#logger.info("✅ Rollback completed successfully.");
-        this.#rolledback = true;
       } catch (error) {
         this.#logger.error({ error }, "⚠️ Adaptation rollback failed.");
       }
@@ -111,32 +109,24 @@ export class AdaptationManager {
     }
   }
 
-  adaptationFinished(): boolean {
-    if (!this.#session) {
-      this.#logger.warn("🔄 No active adaptation session to finish.");
-      return false;
-    }
-
-    this.#logger.info("🔄 Finalizing adaptation session...");
-
-    const success = (() => {
-      if (this.#commited) return this.#session!.resolve("commit");
-      if (this.#rolledback) return this.#session!.resolve("rollback");
-      return false;
-    })();
-
-    this.#logger.info("✅ Adaptation session finished successfully.");
-    this.#session = undefined;
-    return success;
-  }
-
   async #performAdaptation(
     source: SourceFile[],
     tmURL?: URL,
   ): Promise<void> {
     const session = this.#session!;
 
-    await session.init(() => this.#handlers.initAction(tmURL!));
+    if (this.#fsm.is("AdaptationPrep")) {
+      await session.init(() => this.#handlers.initAction(tmURL!));
+    }
+
+    if (!this.#fsm.is("Adaptation")) {
+      this.#logger.error(
+        { currentState: this.#fsm.state, expectedState: "Adaptation" },
+        "❌ Invalid State",
+      );
+      throw new Error("❗️ End node is in an invalid state for adaptation");
+    }
+
     await this.#deleteOldFiles(source);
     await this.writeNewFiles(source);
     await session.commit(() => this.#handlers.commitAction());

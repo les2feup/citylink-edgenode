@@ -434,7 +434,7 @@ export class uMQTTCoreController implements EndNodeController {
     }
 
     this.#fsm.transition("Application");
-    if (!this.#adaptationManager.adaptationFinished()) {
+    if (!this.#adaptationManager.sessionFinished()) {
       this.#adaptationManager.abort(
         "Adaptation session not finished but core status is APP",
       );

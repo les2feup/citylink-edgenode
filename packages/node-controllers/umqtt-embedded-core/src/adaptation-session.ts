@@ -2,9 +2,6 @@ import type { ControllerFSM } from "./fsm.ts";
 import { defer, type Deferred } from "./utils/async-utils.ts";
 import type { Logger } from "common/log";
 
-type AsyncCallback = () => Promise<void>;
-type Callback = () => void;
-
 const promiseTypes = [
   "init",
   "write",
@@ -32,17 +29,17 @@ export class AdaptationSession {
     rollback: defer<void>(),
   };
 
-  #fsm: ControllerFSM;
   #logger: Logger;
   #timeoutConfig: Record<string, number>;
   #isAborted = false;
+  #isFinished = false;
+  #commitIssued = false;
+  #rollbackIssued = false;
 
   constructor(
-    fsm: ControllerFSM,
     logger: Logger,
     timeoutConfig?: Partial<typeof AdaptationSession.DEFAULT_TIMEOUTS>,
   ) {
-    this.#fsm = fsm;
     this.#logger = logger.child({ name: "AdaptationSession" });
     this.#timeoutConfig = {
       ...AdaptationSession.DEFAULT_TIMEOUTS,
@@ -125,27 +122,79 @@ export class AdaptationSession {
     for (const p of Object.values(this.#promises)) {
       if (!p.isSettled) {
         p.reject("Adaptation aborted");
-        p.promise.catch((err) => {
-          this.#logger.debug({ err }, "Promise rejected due to session abort");
-        });
+        p.promise.catch((err) => this.#logger.debug({ err }));
       }
     }
 
     this.#isAborted = true;
   }
 
-  #assertAdaptationState(op: string): void {
-    if (!this.#fsm.is("Adaptation")) {
-      this.#logger.error(
-        { operation: op, state: this.#fsm.state },
-        "⚠️ Cannot perform adaptation operation outside of Adaptation state",
-      );
-      throw new Error("InvalidState: Not in Adaptation state");
+  finish(): boolean {
+    if (this.#isAborted) {
+      this.#logger.warn("🔄 Adaptation session already aborted.");
+      return false;
     }
+
+    if (this.#isFinished) {
+      this.#logger.warn("🔄 Adaptation session already completed.");
+      return true;
+    }
+
+    this.#isFinished = (() => {
+      if (this.#commitIssued) return this.resolve("commit");
+      if (this.#rollbackIssued) return this.resolve("rollback");
+      return false;
+    })();
+
+    return this.#isFinished;
+  }
+
+  async init(initAction: () => Promise<void>): Promise<void> {
+    return await this.#performWithTimeout(
+      initAction,
+      "init",
+      this.#timeoutConfig.initTimeout,
+    );
+  }
+
+  async write(writeAction: () => Promise<void>): Promise<string> {
+    return await this.#performWithTimeout(
+      writeAction,
+      "write",
+      this.#timeoutConfig.writeTimeout,
+      true, // Allow creating a new promise if already settled
+    );
+  }
+
+  async delete(deleteAction: () => Promise<void>): Promise<string[]> {
+    return await this.#performWithTimeout(
+      deleteAction,
+      "delete",
+      this.#timeoutConfig.deleteTimeout,
+      true, // Allow creating a new promise if already settled
+    );
+  }
+
+  async commit(commitAction: () => Promise<void>): Promise<void> {
+    await this.#performWithTimeout(
+      commitAction,
+      "commit",
+      this.#timeoutConfig.commitTimeout,
+    );
+    this.#commitIssued = true;
+  }
+
+  async rollback(rollbackAction: () => Promise<void>): Promise<void> {
+    await this.#performWithTimeout(
+      rollbackAction,
+      "rollback",
+      this.#timeoutConfig.rollbackTimeout,
+    );
+    this.#rollbackIssued = true;
   }
 
   async #performWithTimeout<T>(
-    action: AsyncCallback,
+    action: () => Promise<void>,
     kind: PromiseType,
     timeout: number,
     createNew?: boolean,
@@ -171,69 +220,5 @@ export class AdaptationSession {
 
     const p = this.#promises[kind].promise;
     return Promise.race([p, timeoutPromise]);
-  }
-
-  async init(initAction: AsyncCallback): Promise<void> {
-    if (this.#fsm.is("Adaptation")) {
-      this.#logger.warn("🔄 Node already in Adaptation state, skipping init.");
-      return;
-    }
-
-    if (!this.#fsm.is("AdaptationPrep")) {
-      this.#logger.error(
-        {
-          state: this.#fsm.state,
-          expectedState: "AdaptationPrep",
-        },
-        "❌ Invalid state for adaptation initialization",
-      );
-      throw new Error(
-        "Adaptation session not in correct state for initialization.",
-      );
-    }
-
-    return await this.#performWithTimeout(
-      initAction,
-      "init",
-      this.#timeoutConfig.initTimeout,
-    );
-  }
-
-  async write(writeAction: AsyncCallback): Promise<string> {
-    this.#assertAdaptationState("write");
-    return await this.#performWithTimeout(
-      writeAction,
-      "write",
-      this.#timeoutConfig.writeTimeout,
-      true, // Allow creating a new promise if already settled
-    );
-  }
-
-  async delete(deleteAction: AsyncCallback): Promise<string[]> {
-    this.#assertAdaptationState("delete");
-    return await this.#performWithTimeout(
-      deleteAction,
-      "delete",
-      this.#timeoutConfig.deleteTimeout,
-      true, // Allow creating a new promise if already settled
-    );
-  }
-
-  async commit(commitAction: AsyncCallback): Promise<void> {
-    this.#assertAdaptationState("commit");
-    return await this.#performWithTimeout(
-      commitAction,
-      "commit",
-      this.#timeoutConfig.commitTimeout,
-    );
-  }
-
-  async rollback(rollbackAction: AsyncCallback): Promise<void> {
-    this.#assertAdaptationState("rollback");
-    return await this.#performWithTimeout(
-      rollbackAction,
-      "rollback",
-      this.#timeoutConfig.rollbackTimeout,
-    );
   }
 }
