@@ -79,7 +79,6 @@ export class uMQTTCoreController implements EndNodeController {
     );
 
     this.#adaptationManager = new AdaptationManager(
-      this.#fsm,
       {
         initAction: this.#adaptationInit.bind(this),
         writeAction: this.#adaptationWrite.bind(this),
@@ -173,7 +172,7 @@ export class uMQTTCoreController implements EndNodeController {
     return EndNode.from(tm, opts);
   }
 
-  async adaptEndNode(tm: URL): Promise<void> {
+  async adaptEndNode(tmURL: URL): Promise<void> {
     if (!this.#fsm.is("Application")) {
       throw new Error(
         `InvalidState: Cannot start adaptation in ${this.#fsm.state} state`,
@@ -184,9 +183,9 @@ export class uMQTTCoreController implements EndNodeController {
     this.#fsm.transition("AdaptationPrep");
 
     try {
-      const newNode = await this.#prepareNewEndNode(tm);
+      const newNode = await this.#prepareNewEndNode(tmURL);
       const source = await newNode.fetchSource();
-      await this.#adaptationManager.adapt(source, tm);
+      await this.#adaptationManager.adapt({ source, tmURL });
       this.#node = newNode;
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -417,11 +416,15 @@ export class uMQTTCoreController implements EndNodeController {
     }
 
     this.#logger.warn("Spontaneous End Node adaptation detected.");
-    const files = await this.#node.fetchSource();
+    const source = await this.#node.fetchSource();
     /* deno-fmt-ignore */
     await this.#adaptationManager.adapt(
-      files, undefined, true, 
-      "Forcing spontaneous adaptation",
+      {
+        source,
+        abortPrevious: true,
+        abortReason: "Spontaneous adaptation detected",
+        skipInit: true, // Skip init since we are already in ADAPT state
+      }
     );
   }
 

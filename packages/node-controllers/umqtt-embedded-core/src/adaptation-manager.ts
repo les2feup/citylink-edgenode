@@ -2,7 +2,6 @@ import type { SourceFile } from "@citylink-edgenode/core";
 import { encodeContentBase64 } from "./utils/content-encoding.ts";
 import { crc32 } from "node:zlib";
 import { createLogger } from "common/log";
-import type { ControllerFSM } from "./fsm.ts";
 import { AdaptationSession, type PromiseType } from "./adaptation-session.ts";
 
 export type AdaptationActionHandlers = {
@@ -11,6 +10,14 @@ export type AdaptationActionHandlers = {
   deleteAction(path: string, recursive: boolean): Promise<void>;
   commitAction(): Promise<void>;
   rollbackAction(): Promise<void>;
+};
+
+export type AdaptationOptions = {
+  source: SourceFile[];
+  tmURL?: URL;
+  abortPrevious?: boolean;
+  abortReason?: string;
+  skipInit?: boolean;
 };
 
 export class AdaptationManager {
@@ -26,17 +33,14 @@ export class AdaptationManager {
   #logger: ReturnType<typeof createLogger>;
   #replaceSet = new Set<string>();
   #handlers: AdaptationActionHandlers;
-  #fsm: ControllerFSM;
   #session?: AdaptationSession;
   #timeoutConfig?: Partial<typeof AdaptationSession.DEFAULT_TIMEOUTS>;
 
   constructor(
-    fsm: ControllerFSM,
     handlers: AdaptationActionHandlers,
     loggerContext?: Record<string, unknown>,
     timeoutConfig?: Partial<typeof AdaptationSession.DEFAULT_TIMEOUTS>,
   ) {
-    this.#fsm = fsm;
     this.#handlers = handlers;
     this.#timeoutConfig = timeoutConfig;
     this.#logger = createLogger(
@@ -69,20 +73,19 @@ export class AdaptationManager {
   }
 
   async adapt(
-    source: SourceFile[],
-    tmURL?: URL,
-    abortPrevious?: boolean,
-    abortReason?: string,
+    opts: AdaptationOptions,
   ): Promise<void> {
-    const [valid, errorMsg] = this.validateSource(source);
+    const [valid, errorMsg] = this.validateSource(opts.source);
     if (!valid) throw new Error(errorMsg!);
 
     if (this.#session) {
-      if (abortPrevious) {
+      if (opts.abortPrevious) {
         this.#logger.warn(
           "🔄 Aborting previous adaptation session before starting a new one.",
         );
-        this.#session.abort(abortReason ?? "Forcing new adaptation session.");
+        this.#session.abort(
+          opts.abortReason ?? "Forcing new adaptation session.",
+        );
       } else {
         throw new Error("❗️ An adaptation session is already in progress.");
       }
@@ -91,9 +94,9 @@ export class AdaptationManager {
     this.#session = new AdaptationSession(this.#logger, this.#timeoutConfig);
 
     try {
-      const files = source.map((f) => f.path);
+      const files = opts.source.map((f) => f.path);
       this.#logger.info({ files }, "🔄 Starting adaptation...");
-      await this.#performAdaptation(source, tmURL);
+      await this.#performAdaptation(opts.source, opts.tmURL, opts.skipInit);
       this.#logger.info("✅ Adaptation completed successfully.");
     } catch (error) {
       this.#logger.error({ error }, "❌ Adaptation failed, rolling back...");
@@ -112,21 +115,11 @@ export class AdaptationManager {
   async #performAdaptation(
     source: SourceFile[],
     tmURL?: URL,
+    skipInit?: boolean,
   ): Promise<void> {
     const session = this.#session!;
 
-    if (this.#fsm.is("AdaptationPrep")) {
-      await session.init(() => this.#handlers.initAction(tmURL!));
-    }
-
-    if (!this.#fsm.is("Adaptation")) {
-      this.#logger.error(
-        { currentState: this.#fsm.state, expectedState: "Adaptation" },
-        "❌ Invalid State",
-      );
-      throw new Error("❗️ End node is in an invalid state for adaptation");
-    }
-
+    if (!skipInit) await session.init(() => this.#handlers.initAction(tmURL!));
     await this.#deleteOldFiles(source);
     await this.writeNewFiles(source);
     await session.commit(() => this.#handlers.commitAction());
