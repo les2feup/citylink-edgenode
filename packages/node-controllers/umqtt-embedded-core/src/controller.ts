@@ -110,11 +110,13 @@ export class uMQTTCoreController implements EndNodeController {
   async #adaptationCommit(): Promise<void> {
     await this.#invokeCoreAction("adaptFinish", true); // true indicates commit
     this.#willRestart = true;
+    this.#logger.info("Commiting adaptation changes...");
   }
 
   async #adaptationRollback(): Promise<void> {
     await this.#invokeCoreAction("adaptFinish", false); // false indicates rollback
     this.#willRestart = true;
+    this.#logger.info("Rolling back adaptation changes...");
   }
 
   // ------- Controller Interface methods --------
@@ -436,12 +438,13 @@ export class uMQTTCoreController implements EndNodeController {
       );
     }
 
-    this.#fsm.transition("Application");
     if (!this.#adaptationManager.sessionFinished()) {
       this.#adaptationManager.abort(
         "Adaptation session not finished but core status is APP",
       );
     }
+
+    this.#fsm.transition("Application");
   }
 
   #handleCoreEvent(affordanceName: string, message: Buffer<ArrayBufferLike>) {

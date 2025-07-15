@@ -78,7 +78,7 @@ export class AdaptationManager {
     const [valid, errorMsg] = this.validateSource(opts.source);
     if (!valid) throw new Error(errorMsg!);
 
-    if (this.#session) {
+    if (this.#session?.isActive) {
       if (opts.abortPrevious) {
         this.#logger.warn(
           "🔄 Aborting previous adaptation session before starting a new one.",

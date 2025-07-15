@@ -1,4 +1,3 @@
-import type { ControllerFSM } from "./fsm.ts";
 import { defer, type Deferred } from "./utils/async-utils.ts";
 import type { Logger } from "common/log";
 
@@ -143,6 +142,9 @@ export class AdaptationSession {
     this.#isFinished = (() => {
       if (this.#commitIssued) return this.resolve("commit");
       if (this.#rollbackIssued) return this.resolve("rollback");
+      this.#logger.warn(
+        "🔄 No commit or rollback issued, cannot finish session",
+      );
       return false;
     })();
 
@@ -176,21 +178,21 @@ export class AdaptationSession {
   }
 
   async commit(commitAction: () => Promise<void>): Promise<void> {
+    this.#commitIssued = true;
     await this.#performWithTimeout(
       commitAction,
       "commit",
       this.#timeoutConfig.commitTimeout,
     );
-    this.#commitIssued = true;
   }
 
   async rollback(rollbackAction: () => Promise<void>): Promise<void> {
+    this.#rollbackIssued = true;
     await this.#performWithTimeout(
       rollbackAction,
       "rollback",
       this.#timeoutConfig.rollbackTimeout,
     );
-    this.#rollbackIssued = true;
   }
 
   async #performWithTimeout<T>(
@@ -220,5 +222,9 @@ export class AdaptationSession {
 
     const p = this.#promises[kind].promise;
     return Promise.race([p, timeoutPromise]);
+  }
+
+  get isActive(): boolean {
+    return !this.#isAborted && !this.#isFinished;
   }
 }
